@@ -1,0 +1,918 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Suivi des contrats de domiciliation</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/5.0.4/tesseract.min.js"></script>
+<style>
+  :root{
+    --navy:#1c2b44;
+    --navy-dark:#12192b;
+    --paper:#fbf9f3;
+    --gold:#a9824c;
+    --ink:#232323;
+    --muted:#6b6f76;
+    --warn:#b8863b;
+    --warn-bg:#fbf1de;
+    --danger:#a13d3d;
+    --danger-bg:#f8e9e7;
+    --ok:#3f7a52;
+    --ok-bg:#e9f2ea;
+    --border:#ddd6c8;
+    --line:#e4e1d8;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:#f2efe8;
+    color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  .app{max-width:980px;margin:0 auto;padding:0 0 48px;}
+  header.top{
+    background:var(--navy);
+    color:#f2efe8;
+    padding:22px 24px 18px;
+    border-bottom:3px solid var(--gold);
+  }
+  header.top h1{margin:0;font-size:19px;font-weight:600;letter-spacing:.2px;}
+  header.top p{margin:4px 0 0;font-size:13px;color:#c7cede;}
+  nav.tabs{
+    display:flex;
+    gap:2px;
+    background:var(--navy-dark);
+    padding:0 24px;
+  }
+  nav.tabs button{
+    appearance:none;border:none;background:transparent;color:#9aa4bd;
+    padding:12px 16px;font-size:13.5px;font-weight:500;cursor:pointer;
+    border-bottom:2px solid transparent;
+  }
+  nav.tabs button.active{color:#fff;border-bottom-color:var(--gold);}
+  main{padding:22px 20px 0;}
+  @media (min-width:640px){ main{padding:26px 24px 0;} }
+
+  .card{
+    background:#fff;border:1px solid var(--border);border-radius:6px;
+    padding:18px 18px 20px;margin-bottom:18px;
+  }
+  .card h2{margin:0 0 4px;font-size:15px;color:var(--navy);}
+  .card .sub{margin:0 0 16px;font-size:12.5px;color:var(--muted);}
+
+  .grid{display:grid;grid-template-columns:1fr;gap:12px;}
+  @media (min-width:560px){ .grid.cols-2{grid-template-columns:1fr 1fr;} }
+  .field label{display:block;font-size:12px;color:var(--muted);margin-bottom:4px;}
+  .field input,.field select{
+    width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:4px;
+    font-size:13.5px;color:var(--ink);background:#fdfcf9;
+  }
+  .field input:focus,.field select:focus{outline:2px solid var(--gold);outline-offset:0;}
+  .section-label{
+    font-size:11.5px;font-weight:600;color:var(--gold);margin:18px 0 8px;
+    padding-top:12px;border-top:1px solid var(--line);
+  }
+  .section-label:first-child{margin-top:0;padding-top:0;border-top:none;}
+
+  .btn{
+    appearance:none;border:1px solid var(--navy);background:var(--navy);color:#fff;
+    padding:9px 16px;border-radius:4px;font-size:13px;font-weight:600;cursor:pointer;
+  }
+  .btn.secondary{background:#fff;color:var(--navy);}
+  .btn.ghost{background:transparent;border-color:var(--border);color:var(--muted);}
+  .btn.danger{background:#fff;color:var(--danger);border-color:var(--danger);}
+  .btn:disabled{opacity:.5;cursor:not-allowed;}
+  .row-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px;}
+
+  /* Contract paper preview */
+  .paper{
+    background:var(--paper);border:1px solid var(--border);
+    padding:34px 28px;font-family:Georgia,'Times New Roman',serif;
+    color:#1a1a1a;font-size:12.8px;line-height:1.6;
+  }
+  .paper h3{
+    text-align:center;font-size:15px;letter-spacing:.5px;margin:0 0 6px;
+  }
+  .paper .legal-ref{text-align:center;font-size:11.5px;font-style:italic;color:#444;margin:0 0 20px;}
+  .paper .party{margin:10px 0;}
+  .paper .party u{text-decoration:underline;}
+  .paper .art{margin:14px 0;}
+  .paper .art b.title{display:block;margin-bottom:3px;text-decoration:underline;}
+  .paper ul{margin:6px 0;padding-left:20px;}
+  .paper li{margin:3px 0;}
+  .paper .sign{display:flex;justify-content:space-between;margin-top:40px;font-size:12.5px;}
+  .paper .sign div{width:46%;}
+  .paper .sign .line{border-top:1px solid #999;margin-top:44px;padding-top:4px;font-size:11px;color:#555;}
+
+  /* Archive list */
+  .archive-item{
+    display:flex;justify-content:space-between;align-items:center;
+    padding:12px 4px;border-bottom:1px solid var(--line);gap:10px;flex-wrap:wrap;
+  }
+  .archive-item:last-child{border-bottom:none;}
+  .archive-item .info b{display:block;font-size:14px;color:var(--navy);}
+  .archive-item .info span{font-size:12px;color:var(--muted);}
+  .empty{color:var(--muted);font-size:13px;padding:14px 4px;}
+
+  /* Suivi table */
+  table{width:100%;border-collapse:collapse;font-size:12.8px;}
+  th{
+    text-align:left;font-size:11px;text-transform:none;color:var(--muted);
+    border-bottom:1px solid var(--border);padding:8px 8px;white-space:nowrap;
+  }
+  td{padding:9px 8px;border-bottom:1px solid var(--line);vertical-align:middle;white-space:nowrap;}
+  tr.expired td{background:var(--danger-bg);}
+  tr.soon td{background:var(--warn-bg);}
+  .badge{
+    display:inline-block;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600;
+  }
+  .badge.ok{background:var(--ok-bg);color:var(--ok);}
+  .badge.soon{background:var(--warn-bg);color:var(--warn);}
+  .badge.expired{background:var(--danger-bg);color:var(--danger);}
+  .pay-toggle{
+    border:1px solid var(--border);background:#fff;border-radius:4px;padding:4px 8px;
+    font-size:11.5px;cursor:pointer;font-weight:600;
+  }
+  .pay-toggle.paid{background:var(--ok-bg);color:var(--ok);border-color:var(--ok);}
+  .pay-toggle.unpaid{background:var(--danger-bg);color:var(--danger);border-color:var(--danger);}
+  .table-wrap{overflow-x:auto;}
+  .note{font-size:12px;color:var(--muted);margin-top:12px;line-height:1.5;}
+
+  .field input[type="file"]{padding:6px;font-size:12.5px;background:#fdfcf9;}
+  .ocr-status{display:block;font-size:11.5px;margin-top:4px;color:var(--muted);}
+  .ocr-status.found{color:var(--ok);}
+  .ocr-status.busy{color:var(--gold);}
+  .attach-box{margin-top:14px;}
+  .attach-item{
+    display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--line);
+  }
+  .attach-item img{width:48px;height:48px;object-fit:cover;border-radius:4px;border:1px solid var(--border);}
+  .attach-item a{font-size:12.5px;color:var(--navy);font-weight:600;text-decoration:none;}
+
+  .auth-wrap{
+    max-width:360px;margin:60px auto;padding:0 20px;
+  }
+  .auth-card{
+    background:#fff;border:1px solid var(--border);border-radius:8px;padding:26px 22px;
+  }
+  .auth-card h2{margin:0 0 4px;font-size:17px;color:var(--navy);}
+  .auth-card p.sub{margin:0 0 18px;font-size:12.5px;color:var(--muted);}
+  .auth-card .field{margin-bottom:12px;}
+  .auth-card .btn{width:100%;margin-top:6px;}
+  .auth-switch{margin-top:16px;font-size:12.5px;text-align:center;color:var(--muted);}
+  .auth-switch a{color:var(--navy);font-weight:600;text-decoration:none;cursor:pointer;}
+  .auth-error{background:var(--danger-bg);color:var(--danger);padding:8px 10px;border-radius:4px;font-size:12.5px;margin-bottom:12px;}
+  .logout-btn{
+    background:transparent;border:1px solid rgba(255,255,255,.3);color:#f2efe8;
+    padding:5px 12px;border-radius:4px;font-size:12px;cursor:pointer;float:right;
+  }
+
+  /* Print */
+  @media print{
+    body *{visibility:hidden;}
+    #print-area,#print-area *{visibility:visible;}
+    #print-area{position:absolute;top:0;left:0;width:100%;padding:0;border:none;}
+    header.top,nav.tabs{display:none;}
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="top">
+    <button id="btn-logout" class="logout-btn" style="display:none;">Se déconnecter</button>
+    <h1>Suivi des contrats de domiciliation</h1>
+    <p>LAMINE CONSEIL — création, archivage et suivi des échéances</p>
+  </header>
+  <nav class="tabs" id="main-nav" style="display:none;">
+    <button data-tab="nouveau" class="active">Nouveau contrat</button>
+    <button data-tab="archive">Archive</button>
+    <button data-tab="suivi">Suivi</button>
+  </nav>
+
+  <main id="main"></main>
+</div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import {
+  getAuth, onAuthStateChanged, signInWithEmailAndPassword,
+  createUserWithEmailAndPassword, signOut, sendPasswordResetEmail
+} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+import {
+  getFirestore, collection, doc, setDoc, getDoc, getDocs, deleteDoc, updateDoc
+} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyD6cJ4Z89l0auQ-k0LFiJ0EV_HKQ1Qikko",
+  authDomain: "lamine-conseil-suivi.firebaseapp.com",
+  projectId: "lamine-conseil-suivi",
+  storageBucket: "lamine-conseil-suivi.firebasestorage.app",
+  messagingSenderId: "693705755590",
+  appId: "1:693705755590:web:26947cad49e5b12b0600c7"
+};
+const fbApp = initializeApp(firebaseConfig);
+const auth = getAuth(fbApp);
+const db = getFirestore(fbApp);
+let currentUser = null;
+let authMode = 'login'; // 'login' | 'signup' | 'reset'
+
+const STORE_KEY = 'lc-contrats';
+let contracts = [];
+let activeTab = 'nouveau';
+let previewData = null;
+let viewingArchiveId = null;
+let pendingAttachments = {}; // { cin: {name, dataUrl}, negatif: {name, dataUrl} }
+
+function compressImage(file, maxWidth, quality){
+  maxWidth = maxWidth || 1000; quality = quality || 0.6;
+  return new Promise(function(resolve, reject){
+    const reader = new FileReader();
+    reader.onload = function(e){
+      const img = new Image();
+      img.onload = function(){
+        const scale = Math.min(1, maxWidth / img.width);
+        const canvas = document.createElement('canvas');
+        canvas.width = Math.round(img.width * scale);
+        canvas.height = Math.round(img.height * scale);
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        resolve(canvas.toDataURL('image/jpeg', quality));
+      };
+      img.onerror = reject;
+      img.src = e.target.result;
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+async function tryOCR(dataUrl){
+  if(!window.Tesseract) return '';
+  try{
+    const result = await Tesseract.recognize(dataUrl, 'eng');
+    return (result && result.data && result.data.text) || '';
+  }catch(e){
+    console.error('OCR erreur', e);
+    return '';
+  }
+}
+function extractCIN(text){
+  const m = text.match(/\b([A-Z]{1,2}[\s-]?\d{5,7})\b/);
+  return m ? m[1].replace(/[\s-]/g,'') : '';
+}
+function extractICE(text){
+  const m = text.match(/\b(\d{15})\b/);
+  return m ? m[1] : '';
+}
+
+async function loadContracts(){
+  try{
+    const snap = await getDocs(collection(db, 'users', currentUser.uid, 'contracts'));
+    contracts = snap.docs.map(function(d){ return d.data(); });
+  }catch(e){
+    console.error(e);
+    contracts = [];
+  }
+}
+async function saveContractDoc(contract){
+  try{
+    await setDoc(doc(db, 'users', currentUser.uid, 'contracts', contract.numero), contract);
+    return true;
+  }catch(e){
+    console.error('Erreur de sauvegarde', e);
+    alert('Attention : la sauvegarde a échoué. Vérifie ta connexion internet et réessaie.');
+    return false;
+  }
+}
+async function deleteContractDoc(numero){
+  try{ await deleteDoc(doc(db, 'users', currentUser.uid, 'contracts', numero)); }
+  catch(e){ console.error(e); }
+}
+async function updateContractField(numero, fields){
+  try{ await updateDoc(doc(db, 'users', currentUser.uid, 'contracts', numero), fields); return true; }
+  catch(e){ console.error(e); alert('La mise à jour a échoué. Vérifie ta connexion internet.'); return false; }
+}
+
+async function downloadPDF(elementId, filename){
+  const el = document.getElementById(elementId);
+  if(!el || !window.html2canvas || !window.jspdf){
+    alert('Le générateur PDF est en train de charger, réessaie dans quelques secondes.');
+    return;
+  }
+  const btns = document.querySelectorAll('.row-actions button');
+  btns.forEach(function(b){ b.disabled = true; });
+  try{
+    const canvas = await html2canvas(el, {scale:2, backgroundColor:'#fbf9f3', useCORS:true});
+    const imgData = canvas.toDataURL('image/png');
+    const { jsPDF } = window.jspdf;
+    const pdf = new jsPDF('p','mm','a4');
+    const pageWidth = pdf.internal.pageSize.getWidth();
+    const pageHeight = pdf.internal.pageSize.getHeight();
+    const imgWidth = pageWidth;
+    const imgHeight = canvas.height * imgWidth / canvas.width;
+    let heightLeft = imgHeight;
+    let position = 0;
+    pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+    heightLeft -= pageHeight;
+    while(heightLeft > 0){
+      position = heightLeft - imgHeight;
+      pdf.addPage();
+      pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+      heightLeft -= pageHeight;
+    }
+    pdf.save(filename);
+  }catch(err){
+    console.error('Erreur PDF', err);
+    alert('La génération du PDF a échoué sur cet appareil. Réessaie, ou utilise le bouton Imprimer.');
+  }finally{
+    btns.forEach(function(b){ b.disabled = false; });
+  }
+}
+
+function downloadJSON(){
+  const blob = new Blob([JSON.stringify(contracts, null, 2)], {type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'contrats-domiciliation-' + new Date().toISOString().slice(0,10) + '.json';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+function importJSONFile(file){
+  const reader = new FileReader();
+  reader.onload = async function(e){
+    try{
+      const imported = JSON.parse(e.target.result);
+      if(!Array.isArray(imported)) throw new Error('format invalide');
+      let added = 0;
+      for(const c of imported){
+        if(c && c.numero && !contracts.some(function(x){ return x.numero === c.numero; })){
+          contracts.push(c);
+          await saveContractDoc(c);
+          added++;
+        }
+      }
+      render();
+      alert(added + ' contrat(s) importé(s).');
+    }catch(err){
+      alert('Le fichier importé n\'est pas valide.');
+    }
+  };
+  reader.readAsText(file);
+}
+
+function fmtDate(iso){
+  if(!iso) return '\u2014';
+  const [y,m,d] = iso.split('-');
+  return d + '/' + m + '/' + y;
+}
+function addMonths(iso, months){
+  const d = new Date(iso);
+  d.setMonth(d.getMonth() + Number(months));
+  d.setDate(d.getDate() - 1);
+  return d.toISOString().slice(0,10);
+}
+function daysLeft(iso){
+  const today = new Date(); today.setHours(0,0,0,0);
+  const end = new Date(iso); end.setHours(0,0,0,0);
+  return Math.round((end-today)/86400000);
+}
+function nextNumero(){
+  const year = new Date().getFullYear();
+  const count = contracts.filter(c => (c.numero||'').includes(String(year))).length + 1;
+  return 'LC-' + year + '-' + String(count).padStart(3,'0');
+}
+function esc(s){ return (s||'').toString().replace(/[<>&]/g, function(c){ return {'<':'&lt;','>':'&gt;','&':'&amp;'}[c]; }); }
+
+function contractPaperHTML(c){
+  return ''
+    + '<h3>CONTRAT DE DOMICILIATION</h3>'
+    + '<p class="legal-ref">Contrat de domiciliation conclu conformément au décret N°2.20.950 du 26 juin 2021 relatif à l\'application des articles 2-544 et 7-544 de la loi 15.95 portant code du commerce.</p>'
+    + '<p style="text-align:right;font-size:11px;color:#555;">N° ' + esc(c.numero) + '</p>'
+
+    + '<div class="party"><p><u>Le domiciliataire :</u><br>'
+    + 'La société <b>LAMINE CONSEIL SARL</b>, ayant RC : 486635, TP : 35404128, IF : 48530457, CNSS : 2453416, ICE : 002563684000023, '
+    + 'sise à : Rue Goulmima Résidence Le Louvre N653 4ème Etg Appt 11, Casablanca, et représentée par : M. LAMINE Omar, '
+    + 'né le 14/04/1991, titulaire de la CIN N° BK601575 et demeurant à : Lissasfa 3 Bloc D N199 Casablanca, en sa qualité de gérant de la société.</p></div>'
+
+    + '<div class="party"><p><u>Et le domicilié :</u><br>'
+    + 'La société : <b>' + esc(c.societe) + '</b>' + (c.ice ? ', ICE ' + esc(c.ice) : '') + ', représentée par : '
+    + 'Mr/Mme ' + esc(c.representant) + (c.naissance ? ', né(e) le ' + fmtDate(c.naissance) : '') + ', de nationalité ' + (esc(c.nationalite) || 'marocaine')
+    + (c.cin ? ', et titulaire de la CIN N° ' + esc(c.cin) : '') + (c.adresseRep ? ', demeurant à ' + esc(c.adresseRep) : '')
+    + '. En sa qualité de ' + (esc(c.qualite) || 'gérant') + ' de la société.</p></div>'
+
+    + '<p><b>Il a été convenu ce qui suit :</b></p>'
+
+    + '<div class="art"><b class="title">ARTICLE 1 : OBJET</b>'
+    + 'Le présent contrat est conclu pour la domiciliation du siège de la société : <b>' + esc(c.societe) + '</b>'
+    + (c.ice ? ' ayant l\'ICE ' + esc(c.ice) : '') + ', en application des dispositions de l\'article 2-544 de la loi 15.95 portant code de commerce.</div>'
+
+    + '<div class="art"><b class="title">ARTICLE 2 : LES SERVICES</b>'
+    + 'Le domiciliataire s\'engage à permettre au domicilié, objet de l\'article premier, de bénéficier des services suivants :'
+    + '<ul>'
+    + '<li>Exploitation de l\'adresse du domiciliataire comme adresse du siège social du domicilié ;</li>'
+    + '<li>Mise à sa disposition d\'un local ou de locaux équipés de moyens de communication spécifiques aux bureaux ;</li>'
+    + '<li>Mise à sa disposition de locaux équipés pour la tenue des registres et documents prévus par les textes en vigueur et permettant leur préservation, leur consultation et leur mise à jour ;</li>'
+    + '<li>Mandat au domiciliataire, qui l\'accepte, de recevoir en son nom toutes notifications.</li>'
+    + '</ul>'
+    + 'Le centre de domiciliation s\'engage à conserver le courrier à destination du client pour une durée n\'excédant pas 03 mois. '
+    + 'A l\'expiration de ce délai il décline toute responsabilité par rapport à la perte ou l\'égarement de ce courrier.</div>'
+
+    + '<div class="art"><b class="title">ARTICLE 3 : OBLIGATIONS DU DOMICILIATAIRE ET DU DOMICILIÉ</b>'
+    + 'Pendant toute la durée du contrat, le domiciliataire et le domicilié sont tenus aux obligations légales et réglementaires prévues '
+    + 'par le décret N°2.20.950 du 26 juin 2021 et la loi 15.95 portant code de commerce, notamment la tenue du dossier de domiciliation, '
+    + 'l\'information des administrations compétentes (impôts, trésorerie générale, douanes le cas échéant) de toute modification, '
+    + 'de l\'expiration ou de la rupture anticipée du contrat, ainsi que le dépôt par le domicilié des documents constitutifs du dossier '
+    + 'de domiciliation (pièce d\'identité du représentant légal, justificatif d\'adresse, RIB ou spécimen de chèque, numéro de téléphone, '
+    + 'adresse de réexpédition du courrier, copie des statuts de la société).</div>'
+
+    + '<div class="art"><b class="title">ARTICLE 4 : DUREE DU CONTRAT</b>'
+    + 'Le présent contrat de domiciliation est conclu pour une durée de <b>' + esc(c.duree) + ' MOIS</b>, qui commencera le '
+    + '<b>' + fmtDate(c.dateDebut) + '</b> et se terminera le <b>' + fmtDate(c.dateFin) + '</b>, renouvelable par tacite reconduction.</div>'
+
+    + '<div class="art"><b class="title">ARTICLE 5 : LOYER</b>'
+    + 'Le présent contrat de domiciliation est conclu moyennant un loyer mensuel fixé à <b>' + esc(c.loyer) + ' DHS/MOIS</b>. '
+    + 'Le loyer fixé comprend tous les services de l\'article 2 du présent contrat.</div>'
+
+    + '<div class="art"><b class="title">ARTICLE 6 : TRIBUNAUX COMPETENTS</b>'
+    + 'Tout litige né entre les deux parties lors de l\'exécution du présent contrat sera soumis à la compétence du tribunal du lieu de domiciliation.</div>'
+
+    + '<div class="art"><b class="title">ARTICLE 7 : ELECTION DE DOMICILE</b>'
+    + 'Les parties élisent domicile à leur siège social :<br>'
+    + 'Le domiciliataire : LAMINE CONSEIL<br>'
+    + 'Le domicilié : La société : ' + esc(c.societe) + '</div>'
+
+    + '<div class="art"><b class="title">ARTICLE 8 : PROCURATION SPECIALE</b>'
+    + 'Mr/Mme ' + esc(c.representant) + (c.cin ? ', titulaire de la CIN N° ' + esc(c.cin) : '') + ', agissant en qualité de '
+    + (esc(c.qualite) || 'gérant') + ' de la société « ' + esc(c.societe) + ' »' + (c.ice ? ' ICE : ' + esc(c.ice) : '')
+    + ' donne par la présente procuration à LAMINE CONSEIL, pour la réception de toutes sortes de notifications en son nom pendant la durée du contrat.</div>'
+
+    + '<p style="margin-top:22px;">A Casablanca le ' + fmtDate(c.dateDebut) + '</p>'
+
+    + '<div class="sign">'
+    + '<div>SIGNATURE DOMICILIATAIRE<br><b>Mr. OMAR LAMINE</b><div class="line">Signature et cachet</div></div>'
+    + '<div style="text-align:right;">SIGNATURE DE DOMICILIE<br><b>' + esc(c.representant) + '</b><div class="line">Signature et cachet</div></div>'
+    + '</div>';
+}
+
+function readForm(){
+  const v = function(id){ return document.getElementById(id).value.trim(); };
+  const dateDebut = v('f-debut');
+  const duree = v('f-duree') || '12';
+  return {
+    numero: v('f-numero') || nextNumero(),
+    societe: v('f-societe'),
+    ice: v('f-ice'),
+    representant: v('f-representant'),
+    naissance: v('f-naissance'),
+    nationalite: v('f-nationalite'),
+    cin: v('f-cin'),
+    adresseRep: v('f-adresse-rep'),
+    qualite: v('f-qualite'),
+    telephone: v('f-telephone'),
+    intermediaire: v('f-intermediaire'),
+    dateDebut,
+    duree,
+    dateFin: dateDebut ? addMonths(dateDebut, duree) : '',
+    loyer: v('f-loyer'),
+    modePaiement: v('f-mode'),
+    paye: false,
+    attachments: { cin: pendingAttachments.cin || null, negatif: pendingAttachments.negatif || null },
+    createdAt: new Date().toISOString()
+  };
+}
+
+function downloadDataUrl(dataUrl, filename){
+  const a = document.createElement('a');
+  a.href = dataUrl;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+}
+
+async function loadAttachmentsBox(numero){
+  const box = document.getElementById('attachments-box');
+  if(!box) return;
+  try{
+    const snap = await getDoc(doc(db, 'users', currentUser.uid, 'attachments', numero));
+    const data = snap.exists() ? snap.data() : {};
+    let html = '<p class="section-label" style="margin:0 0 8px;">Pièces jointes</p>';
+    ['cin','negatif'].forEach(function(key){
+      const item = data[key];
+      const labelMap = { cin: 'Copie CIN', negatif: 'Certificat négatif / ICE' };
+      if(item && item.dataUrl){
+        html += '<div class="attach-item"><img src="' + item.dataUrl + '" alt=""><div style="flex:1;">'
+          + labelMap[key] + '<br><a href="#" class="attach-dl" data-key="' + key + '">Télécharger — ' + esc(item.name||'') + '</a></div></div>';
+      }
+    });
+    box.innerHTML = html || '<p class="empty">Aucune pièce jointe.</p>';
+    box.querySelectorAll('.attach-dl').forEach(function(link){
+      link.onclick = function(ev){
+        ev.preventDefault();
+        const item = data[link.dataset.key];
+        if(item) downloadDataUrl(item.dataUrl, item.name || (link.dataset.key + '.jpg'));
+      };
+    });
+  }catch(e){
+    console.error(e);
+    box.innerHTML = '<p class="empty">Impossible de charger les pièces jointes.</p>';
+  }
+}
+
+function renderAuth(errorMsg){
+  const main = document.getElementById('main');
+  const title = authMode === 'signup' ? 'Créer un compte' : (authMode === 'reset' ? 'Mot de passe oublié' : 'Connexion');
+  const sub = authMode === 'signup' ? 'Crée ton compte pour accéder à l\'application.' :
+    (authMode === 'reset' ? 'Reçois un lien par e-mail pour réinitialiser ton mot de passe.' : 'Connecte-toi pour accéder à tes contrats.');
+  main.innerHTML = ''
+    + '<div class="auth-wrap"><div class="auth-card">'
+    + '<h2>' + title + '</h2><p class="sub">' + sub + '</p>'
+    + (errorMsg ? '<div class="auth-error">' + esc(errorMsg) + '</div>' : '')
+    + '<div class="field"><label>E-mail</label><input type="email" id="auth-email" autocomplete="username"></div>'
+    + (authMode !== 'reset' ? '<div class="field"><label>Mot de passe</label><input type="password" id="auth-password" autocomplete="' + (authMode==='signup'?'new-password':'current-password') + '"></div>' : '')
+    + '<button class="btn" id="auth-submit">' + (authMode === 'signup' ? 'Créer le compte' : (authMode === 'reset' ? 'Envoyer le lien' : 'Se connecter')) + '</button>'
+    + '<div class="auth-switch">'
+    + (authMode === 'login' ? 'Pas encore de compte ? <a id="auth-to-signup">Créer un compte</a><br><a id="auth-to-reset">Mot de passe oublié ?</a>' : '')
+    + (authMode === 'signup' ? 'Déjà un compte ? <a id="auth-to-login">Se connecter</a>' : '')
+    + (authMode === 'reset' ? '<a id="auth-to-login">Retour à la connexion</a>' : '')
+    + '</div></div></div>';
+
+  const toSignup = document.getElementById('auth-to-signup');
+  if(toSignup) toSignup.onclick = function(){ authMode = 'signup'; renderAuth(); };
+  const toLogin = document.getElementById('auth-to-login');
+  if(toLogin) toLogin.onclick = function(){ authMode = 'login'; renderAuth(); };
+  const toReset = document.getElementById('auth-to-reset');
+  if(toReset) toReset.onclick = function(){ authMode = 'reset'; renderAuth(); };
+
+  document.getElementById('auth-submit').onclick = async function(){
+    const email = document.getElementById('auth-email').value.trim();
+    const password = authMode !== 'reset' ? document.getElementById('auth-password').value : null;
+    if(!email || (authMode !== 'reset' && !password)){
+      renderAuth('Merci de remplir tous les champs.');
+      return;
+    }
+    try{
+      if(authMode === 'signup'){
+        await createUserWithEmailAndPassword(auth, email, password);
+      } else if(authMode === 'reset'){
+        await sendPasswordResetEmail(auth, email);
+        alert('Un e-mail de réinitialisation a été envoyé si ce compte existe.');
+        authMode = 'login';
+        renderAuth();
+      } else {
+        await signInWithEmailAndPassword(auth, email, password);
+      }
+    }catch(e){
+      const map = {
+        'auth/invalid-email': 'Adresse e-mail invalide.',
+        'auth/user-not-found': 'Aucun compte avec cet e-mail.',
+        'auth/wrong-password': 'Mot de passe incorrect.',
+        'auth/invalid-credential': 'E-mail ou mot de passe incorrect.',
+        'auth/email-already-in-use': 'Un compte existe déjà avec cet e-mail.',
+        'auth/weak-password': 'Le mot de passe doit contenir au moins 6 caractères.'
+      };
+      renderAuth(map[e.code] || 'Une erreur est survenue. Réessaie.');
+    }
+  };
+}
+
+onAuthStateChanged(auth, async function(user){
+  currentUser = user;
+  const nav = document.getElementById('main-nav');
+  const logoutBtn = document.getElementById('btn-logout');
+  if(user){
+    nav.style.display = 'flex';
+    logoutBtn.style.display = 'inline-block';
+    await loadContracts();
+    render();
+  } else {
+    nav.style.display = 'none';
+    logoutBtn.style.display = 'none';
+    contracts = [];
+    authMode = 'login';
+    renderAuth();
+  }
+});
+
+document.getElementById('btn-logout').onclick = function(){ signOut(auth); };
+
+function render(){
+  document.querySelectorAll('nav.tabs button').forEach(function(b){
+    b.classList.toggle('active', b.dataset.tab === activeTab);
+  });
+  const main = document.getElementById('main');
+  if(activeTab === 'nouveau') main.innerHTML = viewNouveau();
+  if(activeTab === 'archive') main.innerHTML = viewArchive();
+  if(activeTab === 'suivi') main.innerHTML = viewSuivi();
+  attachHandlers();
+  if(activeTab === 'archive' && viewingArchiveId){
+    const viewing = contracts.find(function(c){ return c.numero===viewingArchiveId; });
+    if(viewing && viewing.hasAttachments) loadAttachmentsBox(viewingArchiveId);
+  }
+}
+
+function viewNouveau(){
+  return ''
+    + '<div class="card">'
+    + '<h2>Informations du contrat</h2>'
+    + '<p class="sub">Remplis les cases, puis génère l\'aperçu du contrat avant de l\'enregistrer.</p>'
+
+    + '<div class="section-label">Société domiciliée</div>'
+    + '<div class="grid cols-2">'
+    + '<div class="field"><label>Numéro de contrat (interne)</label><input id="f-numero" placeholder="' + nextNumero() + ' (auto si vide)"></div>'
+    + '<div class="field"><label>Société</label><input id="f-societe" placeholder="Nom de la société"></div>'
+    + '<div class="field"><label>ICE</label><input id="f-ice"></div>'
+    + '</div>'
+
+    + '<div class="section-label">Représentant du domicilié</div>'
+    + '<div class="grid cols-2">'
+    + '<div class="field"><label>Nom complet</label><input id="f-representant" placeholder="Mr / Mme ..."></div>'
+    + '<div class="field"><label>Qualité</label><input id="f-qualite" placeholder="Gérant, associé principal..."></div>'
+    + '<div class="field"><label>Date de naissance</label><input id="f-naissance" type="date"></div>'
+    + '<div class="field"><label>Nationalité</label><input id="f-nationalite" placeholder="Marocaine" value="Marocaine"></div>'
+    + '<div class="field"><label>CIN</label><input id="f-cin"></div>'
+    + '<div class="field"><label>Adresse (demeurant à)</label><input id="f-adresse-rep"></div>'
+    + '<div class="field"><label>Téléphone</label><input id="f-telephone" placeholder="06xxxxxxxx"></div>'
+    + '<div class="field"><label>Intermédiaire (interne, non imprimé)</label><input id="f-intermediaire"></div>'
+    + '</div>'
+
+    + '<div class="section-label">Pièces jointes (optionnel)</div>'
+    + '<p class="sub" style="margin-bottom:12px;">Ajoute les photos/scans : les cases CIN et ICE seront pré-remplies automatiquement quand c\'est lisible — vérifie toujours avant d\'enregistrer. Les fichiers sont archivés avec le contrat.</p>'
+    + '<div class="grid cols-2">'
+    + '<div class="field"><label>Copie CIN (recto)</label><input type="file" id="f-file-cin" accept="image/*"><span class="ocr-status" id="ocr-status-cin"></span></div>'
+    + '<div class="field"><label>Certificat négatif / ICE</label><input type="file" id="f-file-negatif" accept="image/*"><span class="ocr-status" id="ocr-status-negatif"></span></div>'
+    + '</div>'
+
+    + '<div class="section-label">Durée et paiement</div>'
+    + '<div class="grid cols-2">'
+    + '<div class="field"><label>Date de début</label><input id="f-debut" type="date"></div>'
+    + '<div class="field"><label>Durée (mois)</label><input id="f-duree" type="number" value="12"></div>'
+    + '<div class="field"><label>Loyer mensuel (DH)</label><input id="f-loyer" type="number" placeholder="500"></div>'
+    + '<div class="field"><label>Mode de paiement</label><input id="f-mode" placeholder="Espèce / Chèque / Virement"></div>'
+    + '</div>'
+
+    + '<div class="row-actions"><button class="btn" id="btn-generer">Générer l\'aperçu</button></div>'
+    + '</div>'
+
+    + (previewData ? (''
+      + '<div class="card">'
+      + '<h2>Aperçu du contrat</h2>'
+      + '<p class="sub">N° ' + esc(previewData.numero) + ' — du ' + fmtDate(previewData.dateDebut) + ' au ' + fmtDate(previewData.dateFin) + '</p>'
+      + '<div class="paper" id="print-area">' + contractPaperHTML(previewData) + '</div>'
+      + '<div class="row-actions">'
+      + '<button class="btn" id="btn-enregistrer">Enregistrer dans l\'archive</button>'
+      + '<button class="btn secondary" id="btn-pdf">Télécharger en PDF</button>'
+      + '<button class="btn ghost" id="btn-imprimer">Imprimer</button>'
+      + '</div></div>'
+    ) : '');
+}
+
+function viewArchive(){
+  if(!contracts.length) return '<div class="card"><h2>Archive</h2><p class="empty">Aucun contrat archivé pour l\'instant.</p></div>';
+  const viewing = contracts.find(function(c){ return c.numero===viewingArchiveId; });
+  let html = ''
+    + '<div class="card">'
+    + '<h2>Archive des contrats</h2>'
+    + '<p class="sub">' + contracts.length + ' contrat(s) enregistré(s)</p>'
+    + '<div class="row-actions" style="margin-top:0;margin-bottom:14px;">'
+    + '<button class="btn secondary" id="btn-export">Exporter (sauvegarde)</button>'
+    + '<button class="btn ghost" id="btn-import-trigger">Importer une sauvegarde</button>'
+    + '<input type="file" id="btn-import" accept="application/json" style="display:none;">'
+    + '</div>';
+  contracts.slice().reverse().forEach(function(c){
+    html += ''
+      + '<div class="archive-item">'
+      + '<div class="info"><b>' + (esc(c.societe)||'(sans nom)') + '</b>'
+      + '<span>N° ' + esc(c.numero) + ' — représentant : ' + (esc(c.representant)||'\u2014') + ' — ' + fmtDate(c.dateDebut) + ' \u2192 ' + fmtDate(c.dateFin) + '</span></div>'
+      + '<div class="row-actions" style="margin-top:0;">'
+      + '<button class="btn ghost btn-voir" data-id="' + esc(c.numero) + '">Voir</button>'
+      + '<button class="btn danger btn-suppr" data-id="' + esc(c.numero) + '">Supprimer</button>'
+      + '</div></div>';
+  });
+  html += '</div>';
+  if(viewing){
+    html += ''
+      + '<div class="card">'
+      + '<h2>Contrat N° ' + esc(viewing.numero) + '</h2>'
+      + '<div class="paper" id="print-area">' + contractPaperHTML(viewing) + '</div>'
+      + (viewing.hasAttachments ? '<div class="attach-box" id="attachments-box"><p class="sub">Chargement des pièces jointes...</p></div>' : '')
+      + '<div class="row-actions">'
+      + '<button class="btn secondary" id="btn-pdf-archive">Télécharger en PDF</button>'
+      + '<button class="btn ghost" id="btn-imprimer-archive">Imprimer</button>'
+      + '<button class="btn ghost" id="btn-fermer-archive">Fermer</button>'
+      + '</div></div>';
+  }
+  return html;
+}
+
+function viewSuivi(){
+  if(!contracts.length) return '<div class="card"><h2>Suivi</h2><p class="empty">Aucun contrat à suivre pour l\'instant. Crée un contrat depuis l\'onglet "Nouveau contrat".</p></div>';
+  const rows = contracts.slice().sort(function(a,b){ return new Date(a.dateFin) - new Date(b.dateFin); });
+  let body = '';
+  rows.forEach(function(c){
+    const left = daysLeft(c.dateFin);
+    const cls = left < 0 ? 'expired' : (left <= 30 ? 'soon' : '');
+    const badge = left < 0
+      ? '<span class="badge expired">Expiré depuis ' + Math.abs(left) + ' j</span>'
+      : (left <= 30 ? '<span class="badge soon">' + left + ' j restants</span>' : '<span class="badge ok">' + left + ' j restants</span>');
+    body += ''
+      + '<tr class="' + cls + '">'
+      + '<td>' + (esc(c.societe)||'\u2014') + '</td>'
+      + '<td>' + (esc(c.representant)||'\u2014') + '</td>'
+      + '<td>' + (esc(c.telephone)||'\u2014') + '</td>'
+      + '<td>' + (esc(c.intermediaire)||'\u2014') + '</td>'
+      + '<td>' + esc(c.numero) + '</td>'
+      + '<td>' + fmtDate(c.dateDebut) + '</td>'
+      + '<td>' + fmtDate(c.dateFin) + '</td>'
+      + '<td>' + (esc(c.modePaiement)||'\u2014') + '</td>'
+      + '<td>' + badge + '</td>'
+      + '<td><button class="pay-toggle ' + (c.paye?'paid':'unpaid') + ' btn-pay" data-id="' + esc(c.numero) + '">' + (c.paye?'Payé':'Non payé') + '</button></td>'
+      + '</tr>';
+  });
+  return ''
+    + '<div class="card">'
+    + '<h2>Suivi des contrats</h2>'
+    + '<p class="sub">Les contrats bientôt échus (30 jours) ou expirés sont mis en évidence.</p>'
+    + '<div class="table-wrap"><table><thead><tr>'
+    + '<th>Société</th><th>Représentant</th><th>Téléphone</th><th>Intermédiaire</th>'
+    + '<th>N° contrat</th><th>Début</th><th>Fin</th><th>Mode paiement</th><th>Statut</th><th>Paiement</th>'
+    + '</tr></thead><tbody>' + body + '</tbody></table></div>'
+    + '<p class="note">Note : cette page ne peut pas envoyer d\'e-mail ou de WhatsApp automatiquement — un navigateur seul '
+    + 'ne peut pas déclencher ces envois sans un service connecté (ex. une automatisation type Zapier/Make reliée à un tableau, '
+    + 'ou un petit script côté serveur). Ce que tu as ici, c\'est un rappel visuel fiable : à chaque ouverture, les contrats à '
+    + 'moins de 30 jours de l\'échéance ou déjà expirés ressortent en couleur.</p>'
+    + '</div>';
+}
+
+function attachHandlers(){
+  document.querySelectorAll('nav.tabs button').forEach(function(b){
+    b.onclick = function(){ activeTab = b.dataset.tab; if(activeTab!=='archive') viewingArchiveId=null; render(); };
+  });
+
+  const fileCin = document.getElementById('f-file-cin');
+  if(fileCin) fileCin.onchange = async function(){
+    const file = fileCin.files && fileCin.files[0];
+    const status = document.getElementById('ocr-status-cin');
+    if(!file) return;
+    if(status) { status.textContent = 'Lecture en cours...'; status.className = 'ocr-status busy'; }
+    try{
+      const dataUrl = await compressImage(file);
+      pendingAttachments.cin = { name: file.name, dataUrl };
+      const text = await tryOCR(dataUrl);
+      const cin = extractCIN(text);
+      const cinField = document.getElementById('f-cin');
+      if(cin && cinField && !cinField.value){
+        cinField.value = cin;
+        if(status){ status.textContent = 'CIN détectée : ' + cin + ' (vérifie)'; status.className = 'ocr-status found'; }
+      } else if(status){
+        status.textContent = 'Fichier joint. Lecture automatique non concluante, remplis la CIN manuellement.';
+        status.className = 'ocr-status';
+      }
+    }catch(e){
+      console.error(e);
+      if(status){ status.textContent = 'Fichier joint (lecture automatique indisponible).'; status.className = 'ocr-status'; }
+    }
+  };
+
+  const fileNegatif = document.getElementById('f-file-negatif');
+  if(fileNegatif) fileNegatif.onchange = async function(){
+    const file = fileNegatif.files && fileNegatif.files[0];
+    const status = document.getElementById('ocr-status-negatif');
+    if(!file) return;
+    if(status) { status.textContent = 'Lecture en cours...'; status.className = 'ocr-status busy'; }
+    try{
+      const dataUrl = await compressImage(file);
+      pendingAttachments.negatif = { name: file.name, dataUrl };
+      const text = await tryOCR(dataUrl);
+      const ice = extractICE(text);
+      const iceField = document.getElementById('f-ice');
+      if(ice && iceField && !iceField.value){
+        iceField.value = ice;
+        if(status){ status.textContent = 'ICE détecté : ' + ice + ' (vérifie)'; status.className = 'ocr-status found'; }
+      } else if(status){
+        status.textContent = 'Fichier joint. Lecture automatique non concluante, remplis l\'ICE manuellement.';
+        status.className = 'ocr-status';
+      }
+    }catch(e){
+      console.error(e);
+      if(status){ status.textContent = 'Fichier joint (lecture automatique indisponible).'; status.className = 'ocr-status'; }
+    }
+  };
+
+  const genBtn = document.getElementById('btn-generer');
+  if(genBtn) genBtn.onclick = function(){
+    const data = readForm();
+    if(!data.societe || !data.dateDebut){
+      alert('Merci de renseigner au moins le nom de la société et la date de début.');
+      return;
+    }
+    previewData = data;
+    render();
+  };
+
+  const saveBtn = document.getElementById('btn-enregistrer');
+  if(saveBtn) saveBtn.onclick = async function(){
+    if(contracts.some(function(c){ return c.numero === previewData.numero; })){
+      alert('Ce numéro de contrat existe déjà dans l\'archive. Change le numéro.');
+      return;
+    }
+    saveBtn.disabled = true;
+    const attachments = previewData.attachments || {};
+    const hasAttachments = !!(attachments.cin || attachments.negatif);
+    if(hasAttachments){
+      const sizeCheck = JSON.stringify(attachments).length;
+      if(sizeCheck > 900000){
+        alert('Les pièces jointes sont trop volumineuses pour être sauvegardées. Le contrat sera enregistré sans elles — réessaie avec des photos plus légères si besoin.');
+      } else {
+        try{
+          await setDoc(doc(db, 'users', currentUser.uid, 'attachments', previewData.numero), attachments);
+        }catch(e){
+          console.error('Erreur sauvegarde pièces jointes', e);
+          alert('Les pièces jointes n\'ont pas pu être sauvegardées. Le contrat sera quand même enregistré sans elles.');
+        }
+      }
+    }
+    const toSave = Object.assign({}, previewData, { hasAttachments: hasAttachments });
+    delete toSave.attachments;
+    const ok = await saveContractDoc(toSave);
+    if(ok){
+      contracts.push(toSave);
+      previewData = null;
+      pendingAttachments = {};
+      activeTab = 'archive';
+      render();
+    }
+    saveBtn.disabled = false;
+  };
+
+  const printBtn = document.getElementById('btn-imprimer');
+  if(printBtn) printBtn.onclick = function(){ window.print(); };
+
+  const pdfBtn = document.getElementById('btn-pdf');
+  if(pdfBtn) pdfBtn.onclick = function(){
+    downloadPDF('print-area', 'contrat-' + (previewData.numero||'contrat') + '.pdf');
+  };
+
+  const printArchiveBtn = document.getElementById('btn-imprimer-archive');
+  if(printArchiveBtn) printArchiveBtn.onclick = function(){ window.print(); };
+
+  const pdfArchiveBtn = document.getElementById('btn-pdf-archive');
+  if(pdfArchiveBtn) pdfArchiveBtn.onclick = function(){
+    const c = contracts.find(function(c){ return c.numero === viewingArchiveId; });
+    downloadPDF('print-area', 'contrat-' + (c ? c.numero : 'contrat') + '.pdf');
+  };
+
+  const closeArchiveBtn = document.getElementById('btn-fermer-archive');
+  if(closeArchiveBtn) closeArchiveBtn.onclick = function(){ viewingArchiveId = null; render(); };
+
+  const exportBtn = document.getElementById('btn-export');
+  if(exportBtn) exportBtn.onclick = function(){ downloadJSON(); };
+
+  const importTrigger = document.getElementById('btn-import-trigger');
+  const importInput = document.getElementById('btn-import');
+  if(importTrigger && importInput){
+    importTrigger.onclick = function(){ importInput.click(); };
+    importInput.onchange = function(){
+      if(importInput.files && importInput.files[0]) importJSONFile(importInput.files[0]);
+    };
+  }
+
+  document.querySelectorAll('.btn-voir').forEach(function(b){
+    b.onclick = function(){ viewingArchiveId = b.dataset.id; render(); };
+  });
+  document.querySelectorAll('.btn-suppr').forEach(function(b){
+    b.onclick = async function(){
+      if(!confirm('Supprimer définitivement ce contrat de l\'archive ?')) return;
+      const target = contracts.find(function(c){ return c.numero === b.dataset.id; });
+      contracts = contracts.filter(function(c){ return c.numero !== b.dataset.id; });
+      if(viewingArchiveId === b.dataset.id) viewingArchiveId = null;
+      await deleteContractDoc(b.dataset.id);
+      if(target && target.hasAttachments){
+        try{ await deleteDoc(doc(db, 'users', currentUser.uid, 'attachments', target.numero)); }catch(e){ console.error(e); }
+      }
+      render();
+    };
+  });
+  document.querySelectorAll('.btn-pay').forEach(function(b){
+    b.onclick = async function(){
+      const c = contracts.find(function(c){ return c.numero === b.dataset.id; });
+      if(c){
+        const newVal = !c.paye;
+        const ok = await updateContractField(c.numero, { paye: newVal });
+        if(ok){ c.paye = newVal; render(); }
+      }
+    };
+  });
+}
+
+
+</script>
+</body>
+</html>
