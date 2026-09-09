@@ -405,7 +405,11 @@ function contractPaperHTML(c){
     + 'La société : <b>' + esc(c.societe) + '</b>' + (c.ice ? ', ICE ' + esc(c.ice) : '') + ', représentée par : '
     + 'Mr/Mme ' + esc(c.representant) + (c.naissance ? ', né(e) le ' + fmtDate(c.naissance) : '') + ', de nationalité ' + (esc(c.nationalite) || 'marocaine')
     + (c.cin ? ', et titulaire de la CIN N° ' + esc(c.cin) : '') + (c.adresseRep ? ', demeurant à ' + esc(c.adresseRep) : '')
-    + '. En sa qualité de ' + (esc(c.qualite) || 'gérant') + ' de la société.</p></div>'
+    + '. En sa qualité de ' + (esc(c.qualite) || 'gérant') + ' de la société'
+    + (c.representant2 ? (' ; et Mr/Mme ' + esc(c.representant2) + (c.naissance2 ? ', né(e) le ' + fmtDate(c.naissance2) : '') + ', de nationalité ' + (esc(c.nationalite2) || 'marocaine')
+        + (c.cin2 ? ', et titulaire de la CIN N° ' + esc(c.cin2) : '') + (c.adresseRep2 ? ', demeurant à ' + esc(c.adresseRep2) : '')
+        + ', en sa qualité de ' + (esc(c.qualite2) || 'gérant') + ' de la société') : '')
+    + '.</p></div>'
 
     + '<p><b>Il a été convenu ce qui suit :</b></p>'
 
@@ -451,13 +455,16 @@ function contractPaperHTML(c){
     + '<div class="art"><b class="title">ARTICLE 8 : PROCURATION SPECIALE</b>'
     + 'Mr/Mme ' + esc(c.representant) + (c.cin ? ', titulaire de la CIN N° ' + esc(c.cin) : '') + ', agissant en qualité de '
     + (esc(c.qualite) || 'gérant') + ' de la société « ' + esc(c.societe) + ' »' + (c.ice ? ' ICE : ' + esc(c.ice) : '')
-    + ' donne par la présente procuration à LAMINE CONSEIL, pour la réception de toutes sortes de notifications en son nom pendant la durée du contrat.</div>'
+    + (c.representant2 ? (' ; et Mr/Mme ' + esc(c.representant2) + (c.cin2 ? ', titulaire de la CIN N° ' + esc(c.cin2) : '') + ', agissant en qualité de ' + (esc(c.qualite2) || 'gérant') + ' de la même société') : '')
+    + ' donne' + (c.representant2 ? 'nt' : '') + ' par la présente procuration à LAMINE CONSEIL, pour la réception de toutes sortes de notifications en son nom pendant la durée du contrat.</div>'
 
     + '<p style="margin-top:22px;">A Casablanca le ' + fmtDate(c.dateDebut) + '</p>'
 
     + '<div class="sign">'
     + '<div>SIGNATURE DOMICILIATAIRE<br><b>Mr. OMAR LAMINE</b><div class="line">Signature et cachet</div></div>'
-    + '<div style="text-align:right;">SIGNATURE DE DOMICILIE<br><b>' + esc(c.representant) + '</b><div class="line">Signature et cachet</div></div>'
+    + '<div style="text-align:right;">SIGNATURE DE DOMICILIE<br><b>' + esc(c.representant) + '</b>'
+    + (c.representant2 ? ('<br><b>' + esc(c.representant2) + '</b>') : '')
+    + '<div class="line">Signature et cachet</div></div>'
     + '</div>';
 }
 
@@ -465,6 +472,8 @@ function readForm(){
   const v = function(id){ return document.getElementById(id).value.trim(); };
   const dateDebut = v('f-debut');
   const duree = v('f-duree') || '12';
+  const rep2Block = document.getElementById('second-rep-block');
+  const hasRep2 = rep2Block && rep2Block.style.display !== 'none' && v('f-representant2');
   return {
     numero: v('f-numero') || nextNumero(),
     societe: v('f-societe'),
@@ -477,6 +486,12 @@ function readForm(){
     qualite: v('f-qualite'),
     telephone: v('f-telephone'),
     intermediaire: v('f-intermediaire'),
+    representant2: hasRep2 ? v('f-representant2') : '',
+    naissance2: hasRep2 ? v('f-naissance2') : '',
+    nationalite2: hasRep2 ? v('f-nationalite2') : '',
+    cin2: hasRep2 ? v('f-cin2') : '',
+    adresseRep2: hasRep2 ? v('f-adresse-rep2') : '',
+    qualite2: hasRep2 ? v('f-qualite2') : '',
     dateDebut,
     duree,
     dateFin: dateDebut ? addMonths(dateDebut, duree) : '',
@@ -643,6 +658,20 @@ function viewNouveau(){
     + '<div class="field"><label>Intermédiaire (interne, non imprimé)</label><input id="f-intermediaire"></div>'
     + '</div>'
 
+    + '<button type="button" class="btn ghost" id="btn-toggle-rep2" style="margin-top:10px;">+ Ajouter un deuxième représentant (co-gérant)</button>'
+    + '<div id="second-rep-block" style="display:none;margin-top:14px;">'
+    + '<div class="section-label">Deuxième représentant (co-gérant)</div>'
+    + '<div class="grid cols-2">'
+    + '<div class="field"><label>Nom complet</label><input id="f-representant2" placeholder="Mr / Mme ..."></div>'
+    + '<div class="field"><label>Qualité</label><input id="f-qualite2" placeholder="Gérant, associé..."></div>'
+    + '<div class="field"><label>Date de naissance</label><input id="f-naissance2" type="date"></div>'
+    + '<div class="field"><label>Nationalité</label><input id="f-nationalite2" placeholder="Marocaine" value="Marocaine"></div>'
+    + '<div class="field"><label>CIN</label><input id="f-cin2"></div>'
+    + '<div class="field"><label>Adresse (demeurant à)</label><input id="f-adresse-rep2"></div>'
+    + '</div>'
+    + '<button type="button" class="btn ghost" id="btn-remove-rep2" style="margin-top:8px;">Retirer le deuxième représentant</button>'
+    + '</div>'
+
     + '<div class="section-label">Pièces jointes (optionnel)</div>'
     + '<p class="sub" style="margin-bottom:12px;">Ajoute les photos/scans : les cases CIN et ICE seront pré-remplies automatiquement quand c\'est lisible — vérifie toujours avant d\'enregistrer. Les fichiers sont archivés avec le contrat.</p>'
     + '<div class="grid cols-2">'
@@ -804,6 +833,23 @@ function attachHandlers(){
       console.error(e);
       if(status){ status.textContent = 'Fichier joint (lecture automatique indisponible).'; status.className = 'ocr-status'; }
     }
+  };
+
+  const toggleRep2 = document.getElementById('btn-toggle-rep2');
+  const rep2Block = document.getElementById('second-rep-block');
+  if(toggleRep2 && rep2Block) toggleRep2.onclick = function(){
+    rep2Block.style.display = 'block';
+    toggleRep2.style.display = 'none';
+  };
+  const removeRep2 = document.getElementById('btn-remove-rep2');
+  if(removeRep2 && rep2Block && toggleRep2) removeRep2.onclick = function(){
+    rep2Block.style.display = 'none';
+    toggleRep2.style.display = 'inline-block';
+    ['f-representant2','f-qualite2','f-naissance2','f-cin2','f-adresse-rep2'].forEach(function(id){
+      const el = document.getElementById(id);
+      if(el) el.value = '';
+    });
+    document.getElementById('f-nationalite2').value = 'Marocaine';
   };
 
   const genBtn = document.getElementById('btn-generer');
