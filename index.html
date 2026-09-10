@@ -392,77 +392,111 @@ function esc(s){ return (s||'').toString().replace(/[<>&]/g, function(c){ return
 
 function contractPaperHTML(c){
   return ''
-    + '<h3>CONTRAT DE DOMICILIATION</h3>'
-    + '<p class="legal-ref">Contrat de domiciliation conclu conformément au décret N°2.20.950 du 26 juin 2021 relatif à l\'application des articles 2-544 et 7-544 de la loi 15.95 portant code du commerce.</p>'
+    + '<h3>Contrat de domiciliation</h3>'
+    + '<p class="legal-ref">Contrat de domiciliation conclu conformément au décret N°2.20.950 du 26 juin 2021 relatif à l\'application des articles 2.544 et 7.544 de la loi 15.95 portant code du commerce.</p>'
     + '<p style="text-align:right;font-size:11px;color:#555;">N° ' + esc(c.numero) + '</p>'
 
     + '<div class="party"><p><u>Le domiciliataire :</u><br>'
-    + 'La société <b>LAMINE CONSEIL SARL</b>, ayant RC : 486635, TP : 35404128, IF : 48530457, CNSS : 2453416, ICE : 002563684000023, '
-    + 'sise à : Rue Goulmima Résidence Le Louvre N653 4ème Etg Appt 11, Casablanca, et représentée par : M. LAMINE Omar, '
-    + 'né le 14/04/1991, titulaire de la CIN N° BK601575 et demeurant à : Lissasfa 3 Bloc D N199 Casablanca, en sa qualité de gérant de la société.</p></div>'
+    + 'La société <b>LAMINE CONSEIL SARL</b>, ayant RC : 486635, TP : 35404128, IF : 48530457, C.N.S.S : 2453416, ICE : 002563684000023, '
+    + 'sise à : Rue Goulmima Résidence Le Louvre N653 4ème Etg Appt 11, Casablanca et Représentée par : M. LAMINE Omar, '
+    + 'né le 14/04/1991, titulaire de la CIN N° BK601575 et demeurant à : Lissasfa 3 Bloc D N 199 Casablanca, en sa qualité de gérant de la société.</p></div>'
 
     + '<div class="party"><p><u>Et le domicilié :</u><br>'
-    + 'La société : <b>' + esc(c.societe) + '</b>' + (c.ice ? ', ICE ' + esc(c.ice) : '') + ', représentée par : '
-    + 'Mr/Mme ' + esc(c.representant) + (c.naissance ? ', né(e) le ' + fmtDate(c.naissance) : '') + ', de nationalité ' + (esc(c.nationalite) || 'marocaine')
-    + (c.cin ? ', et titulaire de la CIN N° ' + esc(c.cin) : '') + (c.adresseRep ? ', demeurant à ' + esc(c.adresseRep) : '')
-    + '. En sa qualité de ' + (esc(c.qualite) || 'gérant') + ' de la société'
-    + (c.representant2 ? (' ; et Mr/Mme ' + esc(c.representant2) + (c.naissance2 ? ', né(e) le ' + fmtDate(c.naissance2) : '') + ', de nationalité ' + (esc(c.nationalite2) || 'marocaine')
-        + (c.cin2 ? ', et titulaire de la CIN N° ' + esc(c.cin2) : '') + (c.adresseRep2 ? ', demeurant à ' + esc(c.adresseRep2) : '')
-        + ', en sa qualité de ' + (esc(c.qualite2) || 'gérant') + ' de la société') : '')
-    + '.</p></div>'
+    + 'La société ' + esc(c.societe) + (c.ice ? ', ayant ICE N° ' + esc(c.ice) : '') + ', représentée par '
+    + (c.representant2
+        ? ('ses deux (2) cogérants : Mr ' + esc(c.representant) + (c.naissance ? ', né le ' + fmtDate(c.naissance) : '') + ', de nationalité ' + (esc(c.nationalite) || 'marocaine')
+            + (c.cin ? ', et titulaire de la CIN N° ' + esc(c.cin) : '') + (c.adresseRep ? ', demeurant à ' + esc(c.adresseRep) : '')
+            + ', et Mr ' + esc(c.representant2) + (c.naissance2 ? ', né le ' + fmtDate(c.naissance2) : '') + ', de nationalité ' + (esc(c.nationalite2) || 'marocaine')
+            + (c.cin2 ? ', et titulaire de la CIN N° ' + esc(c.cin2) : '') + (c.adresseRep2 ? ', demeurant à ' + esc(c.adresseRep2) : '')
+            + ', agissant tous deux en leur qualité de cogérants de la société.')
+        : ('son ' + (esc(c.qualite) || 'gérant') + ' : Mr/Mme ' + esc(c.representant) + (c.naissance ? ', né(e) le ' + fmtDate(c.naissance) : '') + ', de nationalité ' + (esc(c.nationalite) || 'marocaine')
+            + (c.cin ? ', et titulaire de la CIN N° ' + esc(c.cin) : '') + (c.adresseRep ? ', demeurant à ' + esc(c.adresseRep) : '')
+            + ', agissant en sa qualité de ' + (esc(c.qualite) || 'gérant') + ' de la société.'))
+    + '</p></div>'
 
-    + '<p><b>Il a été convenu ce qui suit :</b></p>'
+    + '<p>Il a été convenu ce qui suit : </p>'
 
-    + '<div class="art"><b class="title">ARTICLE 1 : OBJET</b>'
-    + 'Le présent contrat est conclu pour la domiciliation du siège de la société : <b>' + esc(c.societe) + '</b>'
-    + (c.ice ? ' ayant l\'ICE ' + esc(c.ice) : '') + ', en application des dispositions de l\'article 2-544 de la loi 15.95 portant code de commerce.</div>'
+    + '<div class="art"><b class="title">ARTICLE 1 : OBJET</b> '
+    + 'Le présent contrat est conclu pour la domiciliation du siège de la société : ' + esc(c.societe)
+    + (c.ice ? ' ayant l\'ICE ' + esc(c.ice) : '') + ', en application des dispositions de l\'article 2.544 de la loi 15.95 portant code de commerce.</div>'
 
-    + '<div class="art"><b class="title">ARTICLE 2 : LES SERVICES</b>'
+    + '<div class="art"><b class="title">ARTICLE 2 : LES SERVICES</b> '
     + 'Le domiciliataire s\'engage à permettre au domicilié, objet de l\'article premier, de bénéficier des services suivants :'
     + '<ul>'
     + '<li>Exploitation de l\'adresse du domiciliataire comme adresse du siège social du domicilié ;</li>'
     + '<li>Mise à sa disposition d\'un local ou de locaux équipés de moyens de communication spécifiques aux bureaux ;</li>'
-    + '<li>Mise à sa disposition de locaux équipés pour la tenue des registres et documents prévus par les textes en vigueur et permettant leur préservation, leur consultation et leur mise à jour ;</li>'
-    + '<li>Mandat au domiciliataire, qui l\'accepte, de recevoir en son nom toutes notifications.</li>'
+    + '<li>Mise à sa disposition de locaux équipés pour la tenue des registres et documents prévus dans les textes législatifs et réglementaires en vigueur et permettant la préservation des registres et documents ainsi que leur consultation et mise à jour ;</li>'
+    + '<li>Donner mandat au domiciliataire, qui l\'accepte, de recevoir en son nom toutes notifications,</li>'
     + '</ul>'
     + 'Le centre de domiciliation s\'engage à conserver le courrier à destination du client pour une durée n\'excédant pas 03 mois. '
     + 'A l\'expiration de ce délai il décline toute responsabilité par rapport à la perte ou l\'égarement de ce courrier.</div>'
 
-    + '<div class="art"><b class="title">ARTICLE 3 : OBLIGATIONS DU DOMICILIATAIRE ET DU DOMICILIÉ</b>'
-    + 'Pendant toute la durée du contrat, le domiciliataire et le domicilié sont tenus aux obligations légales et réglementaires prévues '
-    + 'par le décret N°2.20.950 du 26 juin 2021 et la loi 15.95 portant code de commerce, notamment la tenue du dossier de domiciliation, '
-    + 'l\'information des administrations compétentes (impôts, trésorerie générale, douanes le cas échéant) de toute modification, '
-    + 'de l\'expiration ou de la rupture anticipée du contrat, ainsi que le dépôt par le domicilié des documents constitutifs du dossier '
-    + 'de domiciliation (pièce d\'identité du représentant légal, justificatif d\'adresse, RIB ou spécimen de chèque, numéro de téléphone, '
-    + 'adresse de réexpédition du courrier, copie des statuts de la société).</div>'
+    + '<div class="art"><b class="title">ARTICLE 3 : OBLIGATIONS DU DOMICILIATAIRE</b> '
+    + '<p><u>1- Obligations de la personne physique ou morale domiciliataire,</u></p>'
+    + 'Pendant toute la durée du contrat, le domiciliataire est tenu par les obligations suivantes : '
+    + '<ul>'
+    + '<li>Tenu d\'un dossier relatif à chaque personne domiciliée contenant des documents permettant, pour les personnes physiques de connaitre leurs adresses personnelles, leurs numéros de téléphone et leurs numéros de pièce d\'identité ainsi que leurs adresses électroniques ;</li>'
+    + '<li>Et concernant les personnes morales, des documents permettant de connaitre les adresses et les numéros de pièces d\'identité de leurs gérants ainsi que leurs adresses électroniques. Le dossier devra contenir aussi les documents relatifs à tous les locaux d\'exploitation de l\'activité de la société domiciliée, le lieu de conservation des documents comptables au cas où ceux-ci ne sont pas conservés chez le domiciliataire ;</li>'
+    + '<li>S\'assurer que le domicilié est bien inscrit au registre du commerce dans un délai de 3 mois à compter de la date de conclusion du contrat de domiciliation, lorsque la domiciliation est obligatoire conformément aux textes législatifs et réglementaires en vigueur ;</li>'
+    + '<li>La communication à l\'administration des impôts, à la trésorerie générale du royaume et le cas échéant, à la direction des douanes de la liste des personnes domiciliées pendant l\'année précédente et ceux avant le 31 janvier de chaque année ;</li>'
+    + '<li>L\'information du secrétariat du greffe du tribunal compétent, de l\'administration des impôts, de la trésorerie générale du royaume et le cas échéant, la direction des douanes, de l\'expiration de la durée du contrat de domiciliation ou de sa rupture anticipée et dans un délai de 1 mois à partir de l\'arrêt du contrat ;</li>'
+    + '<li>Communication aux huissiers de justice des services de recouvrement des créances publiques, titulaire de titres exécutoires, des informations leur permettant de se mettre en contact avec la personne domiciliée ;</li>'
+    + '<li>Respect du secret des informations et des données relatives aux domiciliées ;</li>'
+    + '<li>Aviser l\'administration des impôts, la trésorerie du royaume, le cas échéant l\'administration des douanes, dans un délai n\'excédant pas 15 jours, à partir de la date de réception des plis recommandés adressés par les services fiscaux et qui n\'auront pas pu être remis aux personnes domiciliées ;</li>'
+    + '<li>La prise de la responsabilité solidaire pour le paiement des impôts et taxes relatifs à l\'activité exercée par le domicilié conformément au dernier paragraphe de l\'article 4.544 de la loi numéro 15-95 portant code du commerce.</li>'
+    + '</ul>'
+    + '<p><u>2- Obligations de la personne physique ou morale domiciliée,</u></p>'
+    + 'La personne domiciliée est tenue le long de la durée du contrat par les obligations suivantes : '
+    + '<ul>'
+    + '<li>L\'utilisation effective et exclusive des locaux comme siège social de l\'entreprise ou la société, ou si le siège de l\'entreprise ou la société est situé à l\'étranger, comme agence ou représentation ou branche ou tout établissement qui lui est rattaché quel que soit sa nature ;</li>'
+    + '<li>Déclaration au domiciliataire, s\'il s\'agit d\'une personne physique, de toute modification survenue dans son adresse personnelle ou son activité. S\'il s\'agit d\'une personne morale, la déclaration au domiciliataire de toute modification dans sa forme juridique, sa raison sociale et son objet ainsi que les noms et adresses des gérants et des personnes titulaires de procurations délivrées par le domicilié en vue de conclure en son nom avec le domiciliataire et lui délivrer tous les documents relatifs à cette procuration ;</li>'
+    + '<li>Informer le secrétariat greffe du tribunal compétent ainsi que l\'administration des impôts, la trésorerie générale du royaume et le cas échéant, l\'administration des douanes, de l\'arrêt de la domiciliation et ce dans un délai de 1 mois à compter de la date d\'expiration du contrat de domiciliation ou de sa rupture anticipée ;</li>'
+    + '<li>Rappeler sa qualité de domicilié chez le domiciliataire dans toutes les factures, les correspondances, les bons de commande et les communiqués et tous les documents commerciaux destinés aux tiers ;</li>'
+    + '<li>Livrer au domiciliataire tous les registres et documents prévus par les textes législatifs en vigueur et nécessaires à l\'exécution de ces obligations ;</li>'
+    + '<li>Informer le domiciliataire dans un délai de 10 jours à compter de la date du changement de toute modification dans le ou les lieux de stockage des marchandises importées ou destinées à l\'export ;</li>'
+    + '<li>Informer le domiciliataire de tout conflit potentiel ou de tout litige dont l\'entreprise domiciliée serait partie prenante à cause de son activité commerciale.</li>'
+    + '</ul>'
+    + '<p><u>3- Dossier de domiciliation :</u></p>'
+    + 'La personne domiciliée doit déposer chez le domiciliataire un dossier constitué des documents suivants : '
+    + '<ul>'
+    + '<li>Copie des documents d\'identité du représentant légal de la société domiciliée ;</li>'
+    + '<li>Copie d\'une pièce prouvant l\'adresse du représentant légal de la société ;</li>'
+    + '<li>Extrait du compte bancaire ou spécimen de chèque ;</li>'
+    + '<li>Numéro de téléphone du représentant légal de la société domiciliée ;</li>'
+    + '<li>Adresse de réexpédition du courrier ;</li>'
+    + '<li>Copie des statuts de la société domiciliée.</li>'
+    + '</ul>'
+    + 'Le domicilié s\'engage à informer l\'administration des impôts, la trésorerie générale du royaume et le cas échéant, l\'administration des douanes de toute modification intervenue sur l\'une des pièces constitutives du dossier dans un délai de 15 jours, à partir de sa prise de connaissance de cette modification ainsi que de toute modification des lieux de stockage des marchandises importées ou destinées à l\'export.</div>'
 
-    + '<div class="art"><b class="title">ARTICLE 4 : DUREE DU CONTRAT</b>'
+    + '<div class="art"><b class="title">ARTICLE 4 : DUREE DU CONTRAT</b> '
     + 'Le présent contrat de domiciliation est conclu pour une durée de <b>' + esc(c.duree) + ' MOIS</b>, qui commencera le '
-    + '<b>' + fmtDate(c.dateDebut) + '</b> et se terminera le <b>' + fmtDate(c.dateFin) + '</b>, renouvelable par tacite reconduction.</div>'
+    + '<b>' + fmtDate(c.dateDebut) + '</b> et se terminera le <b>' + fmtDate(c.dateFin) + '</b>, renouvelable par tacite reconduction.'
+    + '<br><br>A l\'expiration de la durée du contrat de domiciliation ou en cas de sa rupture anticipée, le domicilié et le domiciliataire s\'engagent, conformément au paragraphe 1 et 2 de l\'article 3 du présent contrat à informer le secrétariat greffe du tribunal compétent du lieu d\'activité et l\'administration des impôts, la trésorerie générale des impôts et le cas échéant, l\'administration des douanes de l\'arrêt de la domiciliation, dans un délai d\'un mois à partir de la date de l\'arrêt du contrat.</div>'
 
-    + '<div class="art"><b class="title">ARTICLE 5 : LOYER</b>'
-    + 'Le présent contrat de domiciliation est conclu moyennant un loyer mensuel fixé à <b>' + esc(c.loyer) + ' DHS/MOIS</b>. '
-    + 'Le loyer fixé comprend tous les services de l\'article 2 du présent contrat.</div>'
+    + '<div class="art"><b class="title">ARTICLE 5 : LOYER</b> '
+    + 'Le présent contrat de domiciliation est conclu moyennant un loyer mensuel fixé à <b>' + esc(c.loyer) + ' DHS/MOIS</b>, payable par (' + (esc(c.modePaiement) || 'espèce/chèque') + ') le loyer fixé comprend tous les services de l\'article 2 du présent contrat.</div>'
 
-    + '<div class="art"><b class="title">ARTICLE 6 : TRIBUNAUX COMPETENTS</b>'
-    + 'Tout litige né entre les deux parties lors de l\'exécution du présent contrat sera soumis à la compétence du tribunal du lieu de domiciliation.</div>'
+    + '<div class="art"><b class="title">ARTICLE 6 : TRIBUNAUX COMPETENTS</b> '
+    + 'Tout litige né entre les deux parties lors de l\'exécution du pèsent contrat sera soumis à la compétence du tribunal du lieu de domiciliation.</div>'
 
-    + '<div class="art"><b class="title">ARTICLE 7 : ELECTION DE DOMICILE</b>'
-    + 'Les parties élisent domicile à leur siège social :<br>'
+    + '<div class="art"><b class="title">ARTICLE 7 : ELECTION DE DOMICILE</b> '
+    + 'Les parties élisent domicile à leur siège social : <br>'
     + 'Le domiciliataire : LAMINE CONSEIL<br>'
-    + 'Le domicilié : La société : ' + esc(c.societe) + '</div>'
+    + 'Le domicilié : Société ' + esc(c.societe) + '</div>'
 
-    + '<div class="art"><b class="title">ARTICLE 8 : PROCURATION SPECIALE</b>'
-    + 'Mr/Mme ' + esc(c.representant) + (c.cin ? ', titulaire de la CIN N° ' + esc(c.cin) : '') + ', agissant en qualité de '
-    + (esc(c.qualite) || 'gérant') + ' de la société « ' + esc(c.societe) + ' »' + (c.ice ? ' ICE : ' + esc(c.ice) : '')
-    + (c.representant2 ? (' ; et Mr/Mme ' + esc(c.representant2) + (c.cin2 ? ', titulaire de la CIN N° ' + esc(c.cin2) : '') + ', agissant en qualité de ' + (esc(c.qualite2) || 'gérant') + ' de la même société') : '')
-    + ' donne' + (c.representant2 ? 'nt' : '') + ' par la présente procuration à LAMINE CONSEIL, pour la réception de toutes sortes de notifications en son nom pendant la durée du contrat.</div>'
+    + '<div class="art"><b class="title">ARTICLE 8 : PROCURATION SPECIALE</b> '
+    + (c.representant2
+        ? ('Messieurs ' + esc(c.representant) + (c.cin ? ', titulaire de la CIN N° ' + esc(c.cin) : '') + ', et ' + esc(c.representant2) + (c.cin2 ? ', titulaire de la CIN N° ' + esc(c.cin2) : '')
+            + ', agissant en leur qualité de cogérants donnent par la présente procuration à LAMINE CONSEIL, pour la réception de toutes sortes de notifications en notre nom pendant la durée du contrat.')
+        : ('Mr/Mme ' + esc(c.representant) + (c.cin ? ', titulaire de la CIN N° ' + esc(c.cin) : '') + ', agissant en sa qualité de ' + (esc(c.qualite) || 'gérant')
+            + ', donne par la présente procuration à LAMINE CONSEIL, pour la réception de toutes sortes de notifications en son nom pendant la durée du contrat.'))
+    + '</div>'
 
     + '<p style="margin-top:22px;">A Casablanca le ' + fmtDate(c.dateDebut) + '</p>'
 
     + '<div class="sign">'
-    + '<div>SIGNATURE DOMICILIATAIRE<br><b>Mr. OMAR LAMINE</b><div class="line">Signature et cachet</div></div>'
-    + '<div style="text-align:right;">SIGNATURE DE DOMICILIE<br><b>' + esc(c.representant) + '</b>'
+    + '<div>SIGNATURE DOMICILIATAIRE<br><b>M. Omar LAMINE</b><div class="line">Signature et cachet</div></div>'
+    + '<div style="text-align:right;">SIGNATURE DES DOMICILIES<br><b>' + esc(c.representant) + '</b>'
     + (c.representant2 ? ('<br><b>' + esc(c.representant2) + '</b>') : '')
     + '<div class="line">Signature et cachet</div></div>'
     + '</div>';
