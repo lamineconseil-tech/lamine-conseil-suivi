@@ -90,8 +90,9 @@
   /* Contract paper preview */
   .paper{
     background:var(--paper);border:1px solid var(--border);
-    padding:34px 28px;font-family:Georgia,'Times New Roman',serif;
+    padding:34px 28px;font-family:'Times New Roman',Georgia,serif;
     color:#1a1a1a;font-size:12.8px;line-height:1.6;
+    font-variant-numeric:lining-nums;
   }
   .paper h3{
     text-align:center;font-size:15px;letter-spacing:.5px;margin:0 0 6px;
@@ -330,6 +331,41 @@ async function downloadPDF(elementId, filename){
   }finally{
     btns.forEach(function(b){ b.disabled = false; });
   }
+}
+
+function downloadWord(elementId, filename){
+  const el = document.getElementById(elementId);
+  if(!el){
+    alert('Impossible de trouver le contrat à exporter.');
+    return;
+  }
+  const content = el.innerHTML;
+  const html = '<html xmlns:o="urn:schemas-microsoft-com:office:office" '
+    + 'xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">'
+    + '<head><meta charset="utf-8"><title>Contrat de domiciliation</title>'
+    + '<style>'
+    + 'body{font-family:"Times New Roman",serif;font-size:12pt;color:#1a1a1a;line-height:1.5;}'
+    + 'h3{text-align:center;font-size:15pt;margin:0 0 6px;}'
+    + '.legal-ref{text-align:center;font-style:italic;font-size:10pt;color:#444;margin:0 0 18px;}'
+    + '.party{margin:10px 0;}'
+    + '.art{margin:14px 0;}'
+    + '.art b.title{display:block;text-decoration:underline;margin-bottom:4px;}'
+    + 'ul{margin:6px 0;padding-left:20px;}'
+    + 'li{margin:3px 0;}'
+    + '.sign{margin-top:40px;width:100%;}'
+    + '.sign div{display:inline-block;width:46%;vertical-align:top;}'
+    + '.sign .line{border-top:1px solid #999;margin-top:44px;padding-top:4px;font-size:10pt;color:#555;}'
+    + '</style></head>'
+    + '<body>' + content + '</body></html>';
+  const blob = new Blob(['\ufeff', html], {type:'application/msword'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
 }
 
 function downloadJSON(){
@@ -732,6 +768,7 @@ function viewNouveau(){
       + '<div class="row-actions">'
       + '<button class="btn" id="btn-enregistrer">Enregistrer dans l\'archive</button>'
       + '<button class="btn secondary" id="btn-pdf">Télécharger en PDF</button>'
+      + '<button class="btn secondary" id="btn-word">Télécharger en Word</button>'
       + '<button class="btn ghost" id="btn-imprimer">Imprimer</button>'
       + '</div></div>'
     ) : '');
@@ -768,6 +805,7 @@ function viewArchive(){
       + (viewing.hasAttachments ? '<div class="attach-box" id="attachments-box"><p class="sub">Chargement des pièces jointes...</p></div>' : '')
       + '<div class="row-actions">'
       + '<button class="btn secondary" id="btn-pdf-archive">Télécharger en PDF</button>'
+      + '<button class="btn secondary" id="btn-word-archive">Télécharger en Word</button>'
       + '<button class="btn ghost" id="btn-imprimer-archive">Imprimer</button>'
       + '<button class="btn ghost" id="btn-fermer-archive">Fermer</button>'
       + '</div></div>';
@@ -940,6 +978,11 @@ function attachHandlers(){
     downloadPDF('print-area', 'contrat-' + (previewData.numero||'contrat') + '.pdf');
   };
 
+  const wordBtn = document.getElementById('btn-word');
+  if(wordBtn) wordBtn.onclick = function(){
+    downloadWord('print-area', 'contrat-' + (previewData.numero||'contrat') + '.doc');
+  };
+
   const printArchiveBtn = document.getElementById('btn-imprimer-archive');
   if(printArchiveBtn) printArchiveBtn.onclick = function(){ window.print(); };
 
@@ -947,6 +990,12 @@ function attachHandlers(){
   if(pdfArchiveBtn) pdfArchiveBtn.onclick = function(){
     const c = contracts.find(function(c){ return c.numero === viewingArchiveId; });
     downloadPDF('print-area', 'contrat-' + (c ? c.numero : 'contrat') + '.pdf');
+  };
+
+  const wordArchiveBtn = document.getElementById('btn-word-archive');
+  if(wordArchiveBtn) wordArchiveBtn.onclick = function(){
+    const c = contracts.find(function(c){ return c.numero === viewingArchiveId; });
+    downloadWord('print-area', 'contrat-' + (c ? c.numero : 'contrat') + '.doc');
   };
 
   const closeArchiveBtn = document.getElementById('btn-fermer-archive');
