@@ -226,6 +226,7 @@ let activeTab = 'nouveau';
 let previewData = null;
 let viewingArchiveId = null;
 let editingNumero = null;
+let editingHasAttachments = false;
 let pendingAttachments = {}; // { cin: {name, dataUrl}, negatif: {name, dataUrl} }
 
 function compressImage(file, maxWidth, quality){
@@ -576,6 +577,7 @@ function readForm(){
 
 function startEditContract(c){
   editingNumero = c.numero;
+  editingHasAttachments = !!c.hasAttachments;
   previewData = null;
   viewingArchiveId = null;
   activeTab = 'nouveau';
@@ -985,8 +987,9 @@ function attachHandlers(){
     }
     saveBtn.disabled = true;
     const attachments = previewData.attachments || {};
-    const hasAttachments = !!(attachments.cin || attachments.negatif);
-    if(hasAttachments){
+    const newlyUploaded = !!(attachments.cin || attachments.negatif);
+    const hasAttachments = newlyUploaded || (isEditing && editingHasAttachments);
+    if(newlyUploaded){
       const sizeCheck = JSON.stringify(attachments).length;
       if(sizeCheck > 900000){
         alert('Les pièces jointes sont trop volumineuses pour être sauvegardées. Le contrat sera enregistré sans elles — réessaie avec des photos plus légères si besoin.');
@@ -1007,6 +1010,7 @@ function attachHandlers(){
       if(existingIdx > -1){ contracts[existingIdx] = toSave; } else { contracts.push(toSave); }
       previewData = null;
       editingNumero = null;
+      editingHasAttachments = false;
       pendingAttachments = {};
       activeTab = 'archive';
       render();
