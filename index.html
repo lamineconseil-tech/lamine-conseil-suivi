@@ -225,6 +225,7 @@ let contracts = [];
 let activeTab = 'nouveau';
 let previewData = null;
 let viewingArchiveId = null;
+let editingNumero = null;
 let pendingAttachments = {}; // { cin: {name, dataUrl}, negatif: {name, dataUrl} }
 
 function compressImage(file, maxWidth, quality){
@@ -573,6 +574,45 @@ function readForm(){
   };
 }
 
+function startEditContract(c){
+  editingNumero = c.numero;
+  previewData = null;
+  viewingArchiveId = null;
+  activeTab = 'nouveau';
+  render();
+  fillFormFromContract(c);
+}
+
+function fillFormFromContract(c){
+  const setVal = function(id, val){ const el = document.getElementById(id); if(el) el.value = (val===undefined||val===null) ? '' : val; };
+  setVal('f-numero', c.numero);
+  setVal('f-societe', c.societe);
+  setVal('f-ice', c.ice);
+  setVal('f-representant', c.representant);
+  setVal('f-naissance', c.naissance);
+  setVal('f-nationalite', c.nationalite || 'Marocaine');
+  setVal('f-cin', c.cin);
+  setVal('f-adresse-rep', c.adresseRep);
+  setVal('f-qualite', c.qualite);
+  setVal('f-telephone', c.telephone);
+  setVal('f-intermediaire', c.intermediaire);
+  if(c.representant2){
+    const toggleRep2 = document.getElementById('btn-toggle-rep2');
+    const rep2Block = document.getElementById('second-rep-block');
+    if(toggleRep2 && rep2Block){ rep2Block.style.display = 'block'; toggleRep2.style.display = 'none'; }
+    setVal('f-representant2', c.representant2);
+    setVal('f-naissance2', c.naissance2);
+    setVal('f-nationalite2', c.nationalite2 || 'Marocaine');
+    setVal('f-cin2', c.cin2);
+    setVal('f-adresse-rep2', c.adresseRep2);
+    setVal('f-qualite2', c.qualite2);
+  }
+  setVal('f-debut', c.dateDebut);
+  setVal('f-duree', c.duree || '12');
+  setVal('f-loyer', c.loyer);
+  setVal('f-mode', c.modePaiement);
+}
+
 function downloadDataUrl(dataUrl, filename){
   const a = document.createElement('a');
   a.href = dataUrl;
@@ -793,6 +833,7 @@ function viewArchive(){
       + '<span>N° ' + esc(c.numero) + ' — représentant : ' + (esc(c.representant)||'\u2014') + ' — ' + fmtDate(c.dateDebut) + ' \u2192 ' + fmtDate(c.dateFin) + '</span></div>'
       + '<div class="row-actions" style="margin-top:0;">'
       + '<button class="btn ghost btn-voir" data-id="' + esc(c.numero) + '">Voir</button>'
+      + '<button class="btn ghost btn-modifier" data-id="' + esc(c.numero) + '">Modifier</button>'
       + '<button class="btn danger btn-suppr" data-id="' + esc(c.numero) + '">Supprimer</button>'
       + '</div></div>';
   });
@@ -937,7 +978,8 @@ function attachHandlers(){
 
   const saveBtn = document.getElementById('btn-enregistrer');
   if(saveBtn) saveBtn.onclick = async function(){
-    if(contracts.some(function(c){ return c.numero === previewData.numero; })){
+    const isEditing = editingNumero && editingNumero === previewData.numero;
+    if(!isEditing && contracts.some(function(c){ return c.numero === previewData.numero; })){
       alert('Ce numéro de contrat existe déjà dans l\'archive. Change le numéro.');
       return;
     }
@@ -961,8 +1003,10 @@ function attachHandlers(){
     delete toSave.attachments;
     const ok = await saveContractDoc(toSave);
     if(ok){
-      contracts.push(toSave);
+      const existingIdx = contracts.findIndex(function(c){ return c.numero === toSave.numero; });
+      if(existingIdx > -1){ contracts[existingIdx] = toSave; } else { contracts.push(toSave); }
       previewData = null;
+      editingNumero = null;
       pendingAttachments = {};
       activeTab = 'archive';
       render();
@@ -1015,6 +1059,12 @@ function attachHandlers(){
 
   document.querySelectorAll('.btn-voir').forEach(function(b){
     b.onclick = function(){ viewingArchiveId = b.dataset.id; render(); };
+  });
+  document.querySelectorAll('.btn-modifier').forEach(function(b){
+    b.onclick = function(){
+      const c = contracts.find(function(c){ return c.numero === b.dataset.id; });
+      if(c) startEditContract(c);
+    };
   });
   document.querySelectorAll('.btn-suppr').forEach(function(b){
     b.onclick = async function(){
