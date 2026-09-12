@@ -557,7 +557,10 @@ function readForm(){
     adresseRep: v('f-adresse-rep'),
     qualite: v('f-qualite'),
     telephone: v('f-telephone'),
+    email: v('f-email'),
     intermediaire: v('f-intermediaire'),
+    telephoneIntermediaire: v('f-telephone-intermediaire'),
+    emailIntermediaire: v('f-email-intermediaire'),
     representant2: hasRep2 ? v('f-representant2') : '',
     naissance2: hasRep2 ? v('f-naissance2') : '',
     nationalite2: hasRep2 ? v('f-nationalite2') : '',
@@ -597,7 +600,10 @@ function fillFormFromContract(c){
   setVal('f-adresse-rep', c.adresseRep);
   setVal('f-qualite', c.qualite);
   setVal('f-telephone', c.telephone);
+  setVal('f-email', c.email);
   setVal('f-intermediaire', c.intermediaire);
+  setVal('f-telephone-intermediaire', c.telephoneIntermediaire);
+  setVal('f-email-intermediaire', c.emailIntermediaire);
   if(c.representant2){
     const toggleRep2 = document.getElementById('btn-toggle-rep2');
     const rep2Block = document.getElementById('second-rep-block');
@@ -766,8 +772,11 @@ function viewNouveau(){
     + '<div class="field"><label>Nationalité</label><input id="f-nationalite" placeholder="Marocaine" value="Marocaine"></div>'
     + '<div class="field"><label>CIN</label><input id="f-cin"></div>'
     + '<div class="field"><label>Adresse (demeurant à)</label><input id="f-adresse-rep"></div>'
-    + '<div class="field"><label>Téléphone</label><input id="f-telephone" placeholder="06xxxxxxxx"></div>'
+    + '<div class="field"><label>Téléphone gérant</label><input id="f-telephone" placeholder="06xxxxxxxx"></div>'
+    + '<div class="field"><label>Email gérant</label><input id="f-email" type="email" placeholder="email@exemple.com"></div>'
     + '<div class="field"><label>Intermédiaire (interne, non imprimé)</label><input id="f-intermediaire"></div>'
+    + '<div class="field"><label>Téléphone intermédiaire</label><input id="f-telephone-intermediaire" placeholder="06xxxxxxxx"></div>'
+    + '<div class="field"><label>Email intermédiaire</label><input id="f-email-intermediaire" type="email" placeholder="email@exemple.com"></div>'
     + '</div>'
 
     + '<button type="button" class="btn ghost" id="btn-toggle-rep2" style="margin-top:10px;">+ Ajouter un deuxième représentant (co-gérant)</button>'
@@ -871,7 +880,10 @@ function viewSuivi(){
       + '<td>' + (esc(c.societe)||'\u2014') + '</td>'
       + '<td>' + (esc(c.representant)||'\u2014') + '</td>'
       + '<td>' + (esc(c.telephone)||'\u2014') + '</td>'
+      + '<td>' + (esc(c.email)||'\u2014') + '</td>'
       + '<td>' + (esc(c.intermediaire)||'\u2014') + '</td>'
+      + '<td>' + (esc(c.telephoneIntermediaire)||'\u2014') + '</td>'
+      + '<td>' + (esc(c.emailIntermediaire)||'\u2014') + '</td>'
       + '<td>' + esc(c.numero) + '</td>'
       + '<td>' + fmtDate(c.dateDebut) + '</td>'
       + '<td>' + fmtDate(c.dateFin) + '</td>'
@@ -885,7 +897,8 @@ function viewSuivi(){
     + '<h2>Suivi des contrats</h2>'
     + '<p class="sub">Les contrats bientôt échus (30 jours) ou expirés sont mis en évidence.</p>'
     + '<div class="table-wrap"><table><thead><tr>'
-    + '<th>Société</th><th>Représentant</th><th>Téléphone</th><th>Intermédiaire</th>'
+    + '<th>Société</th><th>Représentant</th><th>Téléphone gérant</th><th>Email gérant</th>'
+    + '<th>Intermédiaire</th><th>Téléphone intermédiaire</th><th>Email intermédiaire</th>'
     + '<th>N° contrat</th><th>Début</th><th>Fin</th><th>Mode paiement</th><th>Statut</th><th>Paiement</th>'
     + '</tr></thead><tbody>' + body + '</tbody></table></div>'
     + '<p class="note">Note : cette page ne peut pas envoyer d\'e-mail ou de WhatsApp automatiquement — un navigateur seul '
