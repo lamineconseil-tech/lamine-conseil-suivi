@@ -722,7 +722,7 @@ function readForm(){
     loyer: v('f-loyer'),
     modePaiement: v('f-mode'),
     paye: false,
-    attachments: { cin: pendingAttachments.cin || null, negatif: pendingAttachments.negatif || null },
+    attachments: { cin: pendingAttachments.cin || null, cin2: pendingAttachments.cin2 || null, negatif: pendingAttachments.negatif || null },
     createdAt: new Date().toISOString()
   };
 }
@@ -786,9 +786,9 @@ async function loadAttachmentsBox(numero){
     const snap = await getDoc(doc(db, 'users', currentUser.uid, 'attachments', numero));
     const data = snap.exists() ? snap.data() : {};
     let html = '<p class="section-label" style="margin:0 0 8px;">Pièces jointes</p>';
-    ['cin','negatif'].forEach(function(key){
+    ['cin','cin2','negatif'].forEach(function(key){
       const item = data[key];
-      const labelMap = { cin: 'Copie CIN', negatif: 'Certificat négatif / ICE' };
+      const labelMap = { cin: 'Copie CIN', cin2: 'Copie CIN (2ème gérant)', negatif: 'Certificat négatif / ICE' };
       if(item && item.dataUrl){
         html += '<div class="attach-item"><img src="' + item.dataUrl + '" alt=""><div style="flex:1;">'
           + labelMap[key] + '<br><a href="#" class="attach-dl" data-key="' + key + '">Télécharger — ' + esc(item.name||'') + '</a></div></div>';
@@ -946,6 +946,7 @@ function viewNouveau(){
     + '<p class="sub" style="margin-bottom:12px;">Ajoute les photos/scans : les cases CIN et ICE seront pré-remplies automatiquement quand c\'est lisible — vérifie toujours avant d\'enregistrer. Les fichiers sont archivés avec le contrat.</p>'
     + '<div class="grid cols-2">'
     + '<div class="field"><label>Copie CIN (recto)</label><input type="file" id="f-file-cin" accept="image/*"><span class="ocr-status" id="ocr-status-cin"></span></div>'
+    + '<div class="field"><label>Copie CIN 2ème gérant (si applicable)</label><input type="file" id="f-file-cin2" accept="image/*"><span class="ocr-status" id="ocr-status-cin2"></span></div>'
     + '<div class="field"><label>Certificat négatif / ICE</label><input type="file" id="f-file-negatif" accept="image/*"><span class="ocr-status" id="ocr-status-negatif"></span></div>'
     + '</div>'
 
@@ -1087,6 +1088,31 @@ function attachHandlers(){
     }
   };
 
+  const fileCin2 = document.getElementById('f-file-cin2');
+  if(fileCin2) fileCin2.onchange = async function(){
+    const file = fileCin2.files && fileCin2.files[0];
+    const status = document.getElementById('ocr-status-cin2');
+    if(!file) return;
+    if(status) { status.textContent = 'Lecture en cours...'; status.className = 'ocr-status busy'; }
+    try{
+      const dataUrl = await compressImage(file);
+      pendingAttachments.cin2 = { name: file.name, dataUrl };
+      const text = await tryOCR(dataUrl);
+      const cin = extractCIN(text);
+      const cinField2 = document.getElementById('f-cin2');
+      if(cin && cinField2 && !cinField2.value){
+        cinField2.value = cin;
+        if(status){ status.textContent = 'CIN détectée : ' + cin + ' (vérifie)'; status.className = 'ocr-status found'; }
+      } else if(status){
+        status.textContent = 'Fichier joint. Lecture automatique non concluante, remplis la CIN manuellement.';
+        status.className = 'ocr-status';
+      }
+    }catch(e){
+      console.error(e);
+      if(status){ status.textContent = 'Fichier joint (lecture automatique indisponible).'; status.className = 'ocr-status'; }
+    }
+  };
+
   const fileNegatif = document.getElementById('f-file-negatif');
   if(fileNegatif) fileNegatif.onchange = async function(){
     const file = fileNegatif.files && fileNegatif.files[0];
@@ -1148,16 +1174,20 @@ function attachHandlers(){
       return;
     }
     saveBtn.disabled = true;
-    const attachments = previewData.attachments || {};
-    const newlyUploaded = !!(attachments.cin || attachments.negatif);
+    const rawAttachments = previewData.attachments || {};
+    const attachmentsToSave = {};
+    ['cin','cin2','negatif'].forEach(function(key){
+      if(rawAttachments[key]) attachmentsToSave[key] = rawAttachments[key];
+    });
+    const newlyUploaded = Object.keys(attachmentsToSave).length > 0;
     const hasAttachments = newlyUploaded || (isEditing && editingHasAttachments);
     if(newlyUploaded){
-      const sizeCheck = JSON.stringify(attachments).length;
+      const sizeCheck = JSON.stringify(attachmentsToSave).length;
       if(sizeCheck > 900000){
         alert('Les pièces jointes sont trop volumineuses pour être sauvegardées. Le contrat sera enregistré sans elles — réessaie avec des photos plus légères si besoin.');
       } else {
         try{
-          await setDoc(doc(db, 'users', currentUser.uid, 'attachments', previewData.numero), attachments);
+          await setDoc(doc(db, 'users', currentUser.uid, 'attachments', previewData.numero), attachmentsToSave, { merge: true });
         }catch(e){
           console.error('Erreur sauvegarde pièces jointes', e);
           alert('Les pièces jointes n\'ont pas pu être sauvegardées. Le contrat sera quand même enregistré sans elles.');
