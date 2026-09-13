@@ -7,6 +7,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/5.0.4/tesseract.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <style>
   :root{
     --navy:#1c2b44;
@@ -311,18 +312,24 @@ async function downloadPDF(elementId, filename){
   const btns = document.querySelectorAll('.row-actions button');
   btns.forEach(function(b){ b.disabled = true; });
   try{
+    const canvas = await html2canvas(el, {scale:2, backgroundColor:'#fbf9f3', useCORS:true});
+    const imgData = canvas.toDataURL('image/png');
     const { jsPDF } = window.jspdf;
     const pdf = new jsPDF('p','mm','a4');
     const pageWidth = pdf.internal.pageSize.getWidth();
-    const margin = 12;
-    await pdf.html(el, {
-      x: margin,
-      y: margin,
-      width: pageWidth - margin * 2,
-      windowWidth: el.scrollWidth || 800,
-      autoPaging: 'text',
-      html2canvas: { scale: 2, backgroundColor: '#fbf9f3', useCORS: true }
-    });
+    const pageHeight = pdf.internal.pageSize.getHeight();
+    const imgWidth = pageWidth;
+    const imgHeight = canvas.height * imgWidth / canvas.width;
+    let heightLeft = imgHeight;
+    let position = 0;
+    pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+    heightLeft -= pageHeight;
+    while(heightLeft > 0){
+      position = heightLeft - imgHeight;
+      pdf.addPage();
+      pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+      heightLeft -= pageHeight;
+    }
     pdf.save(filename);
   }catch(err){
     console.error('Erreur PDF', err);
@@ -332,39 +339,184 @@ async function downloadPDF(elementId, filename){
   }
 }
 
-function downloadWord(elementId, filename){
-  const el = document.getElementById(elementId);
-  if(!el){
-    alert('Impossible de trouver le contrat à exporter.');
-    return;
+function escXml(s){
+  return (s===undefined||s===null?'':String(s)).replace(/[<>&"]/g, function(c){
+    return {'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'}[c];
+  });
+}
+
+function xRun(text, opts){
+  opts = opts || {};
+  let rpr = '';
+  if(opts.bold) rpr += '<w:b/>';
+  if(opts.underline) rpr += '<w:u w:val="single"/>';
+  if(opts.italic) rpr += '<w:i/>';
+  if(opts.size) rpr += '<w:sz w:val="' + opts.size + '"/><w:szCs w:val="' + opts.size + '"/>';
+  rpr += '<w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman" w:cs="Times New Roman"/>';
+  const rprXml = '<w:rPr>' + rpr + '</w:rPr>';
+  return '<w:r>' + rprXml + '<w:t xml:space="preserve">' + escXml(text) + '</w:t></w:r>';
+}
+
+function xBreak(){ return '<w:r><w:br/></w:r>'; }
+
+function xPara(innerRuns, opts){
+  opts = opts || {};
+  let ppr = '';
+  if(opts.center) ppr += '<w:jc w:val="center"/>';
+  if(opts.indent) ppr += '<w:ind w:left="' + opts.indent + '"/>';
+  ppr += '<w:spacing w:after="' + (opts.after !== undefined ? opts.after : 160) + '"/>';
+  return '<w:p><w:pPr>' + ppr + '</w:pPr>' + innerRuns + '</w:p>';
+}
+
+function contractDocxBody(c){
+  const paras = [];
+  paras.push(xPara(xRun('Contrat de domiciliation', {bold:true, size:32}), {center:true, after:60}));
+  paras.push(xPara(xRun('Contrat de domiciliation conclu conformément au décret N°2.20.950 du 26 juin 2021 relatif à l\'application des articles 2.544 et 7.544 de la loi 15.95 portant code du commerce.', {italic:true, size:20}), {center:true, after:200}));
+  paras.push(xPara(xRun('N° ' + (c.numero||''), {size:18}), {after:200}));
+
+  paras.push(xPara(
+    xRun('Le domiciliataire :', {underline:true}) + xBreak() +
+    xRun('La société LAMINE CONSEIL SARL, ayant RC : 486635, TP : 35404128, IF : 48530457, C.N.S.S : 2453416, ICE : 002563684000023, sise à : Rue Goulmima Résidence Le Louvre N653 4ème Etg Appt 11, Casablanca et Représentée par : M. LAMINE Omar, né le 14/04/1991, titulaire de la CIN N° BK601575 et demeurant à : Lissasfa 3 Bloc D N 199 Casablanca, en sa qualité de gérant de la société.')
+  , {after:200}));
+
+  const domicilieTexte = c.representant2
+    ? ('ses deux (2) cogérants : Mr ' + (c.representant||'') + (c.naissance ? ', né le ' + fmtDate(c.naissance) : '') + ', de nationalité ' + (c.nationalite || 'marocaine')
+        + (c.cin ? ', et titulaire de la CIN N° ' + c.cin : '') + (c.adresseRep ? ', demeurant à ' + c.adresseRep : '')
+        + ', et Mr ' + c.representant2 + (c.naissance2 ? ', né le ' + fmtDate(c.naissance2) : '') + ', de nationalité ' + (c.nationalite2 || 'marocaine')
+        + (c.cin2 ? ', et titulaire de la CIN N° ' + c.cin2 : '') + (c.adresseRep2 ? ', demeurant à ' + c.adresseRep2 : '')
+        + ', agissant tous deux en leur qualité de cogérants de la société.')
+    : ('son ' + (c.qualite || 'gérant') + ' : Mr/Mme ' + (c.representant||'') + (c.naissance ? ', né(e) le ' + fmtDate(c.naissance) : '') + ', de nationalité ' + (c.nationalite || 'marocaine')
+        + (c.cin ? ', et titulaire de la CIN N° ' + c.cin : '') + (c.adresseRep ? ', demeurant à ' + c.adresseRep : '')
+        + ', agissant en sa qualité de ' + (c.qualite || 'gérant') + ' de la société.');
+  paras.push(xPara(
+    xRun('Et le domicilié :', {underline:true}) + xBreak() +
+    xRun('La société ' + (c.societe||'') + (c.ice ? ', ayant ICE N° ' + c.ice : '') + ', représentée par ' + domicilieTexte)
+  , {after:200}));
+
+  paras.push(xPara(xRun('Il a été convenu ce qui suit : '), {after:200}));
+
+  paras.push(xPara(xRun('ARTICLE 1 : OBJET ', {bold:true, underline:true}) + xRun('Le présent contrat est conclu pour la domiciliation du siège de la société : ' + (c.societe||'') + (c.ice ? ' ayant l\'ICE ' + c.ice : '') + ', en application des dispositions de l\'article 2.544 de la loi 15.95 portant code de commerce.'), {after:200}));
+
+  paras.push(xPara(xRun('ARTICLE 2 : LES SERVICES ', {bold:true, underline:true}) + xRun('Le domiciliataire s\'engage à permettre au domicilié, objet de l\'article premier, de bénéficier des services suivants :'), {after:80}));
+  [
+    'Exploitation de l\'adresse du domiciliataire comme adresse du siège social du domicilié ;',
+    'Mise à sa disposition d\'un local ou de locaux équipés de moyens de communication spécifiques aux bureaux ;',
+    'Mise à sa disposition de locaux équipés pour la tenue des registres et documents prévus dans les textes législatifs et réglementaires en vigueur et permettant la préservation des registres et documents ainsi que leur consultation et mise à jour ;',
+    'Donner mandat au domiciliataire, qui l\'accepte, de recevoir en son nom toutes notifications,'
+  ].forEach(function(t){ paras.push(xPara(xRun('•  ' + t), {indent:400, after:60})); });
+  paras.push(xPara(xRun('Le centre de domiciliation s\'engage à conserver le courrier à destination du client pour une durée n\'excédant pas 03 mois. A l\'expiration de ce délai il décline toute responsabilité par rapport à la perte ou l\'égarement de ce courrier.'), {after:200}));
+
+  paras.push(xPara(xRun('ARTICLE 3 : OBLIGATIONS DU DOMICILIATAIRE', {bold:true, underline:true}), {after:80}));
+  paras.push(xPara(xRun('1- Obligations de la personne physique ou morale domiciliataire,', {underline:true}), {after:80}));
+  paras.push(xPara(xRun('Pendant toute la durée du contrat, le domiciliataire est tenu par les obligations suivantes : '), {after:80}));
+  [
+    'Tenu d\'un dossier relatif à chaque personne domiciliée contenant des documents permettant, pour les personnes physiques de connaitre leurs adresses personnelles, leurs numéros de téléphone et leurs numéros de pièce d\'identité ainsi que leurs adresses électroniques ;',
+    'Et concernant les personnes morales, des documents permettant de connaitre les adresses et les numéros de pièces d\'identité de leurs gérants ainsi que leurs adresses électroniques. Le dossier devra contenir aussi les documents relatifs à tous les locaux d\'exploitation de l\'activité de la société domiciliée, le lieu de conservation des documents comptables au cas où ceux-ci ne sont pas conservés chez le domiciliataire ;',
+    'S\'assurer que le domicilié est bien inscrit au registre du commerce dans un délai de 3 mois à compter de la date de conclusion du contrat de domiciliation, lorsque la domiciliation est obligatoire conformément aux textes législatifs et réglementaires en vigueur ;',
+    'La communication à l\'administration des impôts, à la trésorerie générale du royaume et le cas échéant, à la direction des douanes de la liste des personnes domiciliées pendant l\'année précédente et ceux avant le 31 janvier de chaque année ;',
+    'L\'information du secrétariat du greffe du tribunal compétent, de l\'administration des impôts, de la trésorerie générale du royaume et le cas échéant, la direction des douanes, de l\'expiration de la durée du contrat de domiciliation ou de sa rupture anticipée et dans un délai de 1 mois à partir de l\'arrêt du contrat ;',
+    'Communication aux huissiers de justice des services de recouvrement des créances publiques, titulaire de titres exécutoires, des informations leur permettant de se mettre en contact avec la personne domiciliée ;',
+    'Respect du secret des informations et des données relatives aux domiciliées ;',
+    'Aviser l\'administration des impôts, la trésorerie du royaume, le cas échéant l\'administration des douanes, dans un délai n\'excédant pas 15 jours, à partir de la date de réception des plis recommandés adressés par les services fiscaux et qui n\'auront pas pu être remis aux personnes domiciliées ;',
+    'La prise de la responsabilité solidaire pour le paiement des impôts et taxes relatifs à l\'activité exercée par le domicilié conformément au dernier paragraphe de l\'article 4.544 de la loi numéro 15-95 portant code du commerce.'
+  ].forEach(function(t){ paras.push(xPara(xRun('•  ' + t), {indent:400, after:60})); });
+
+  paras.push(xPara(xRun('2- Obligations de la personne physique ou morale domiciliée,', {underline:true}), {after:80}));
+  paras.push(xPara(xRun('La personne domiciliée est tenue le long de la durée du contrat par les obligations suivantes : '), {after:80}));
+  [
+    'L\'utilisation effective et exclusive des locaux comme siège social de l\'entreprise ou la société, ou si le siège de l\'entreprise ou la société est situé à l\'étranger, comme agence ou représentation ou branche ou tout établissement qui lui est rattaché quel que soit sa nature ;',
+    'Déclaration au domiciliataire, s\'il s\'agit d\'une personne physique, de toute modification survenue dans son adresse personnelle ou son activité. S\'il s\'agit d\'une personne morale, la déclaration au domiciliataire de toute modification dans sa forme juridique, sa raison sociale et son objet ainsi que les noms et adresses des gérants et des personnes titulaires de procurations délivrées par le domicilié en vue de conclure en son nom avec le domiciliataire et lui délivrer tous les documents relatifs à cette procuration ;',
+    'Informer le secrétariat greffe du tribunal compétent ainsi que l\'administration des impôts, la trésorerie générale du royaume et le cas échéant, l\'administration des douanes, de l\'arrêt de la domiciliation et ce dans un délai de 1 mois à compter de la date d\'expiration du contrat de domiciliation ou de sa rupture anticipée ;',
+    'Rappeler sa qualité de domicilié chez le domiciliataire dans toutes les factures, les correspondances, les bons de commande et les communiqués et tous les documents commerciaux destinés aux tiers ;',
+    'Livrer au domiciliataire tous les registres et documents prévus par les textes législatifs en vigueur et nécessaires à l\'exécution de ces obligations ;',
+    'Informer le domiciliataire dans un délai de 10 jours à compter de la date du changement de toute modification dans le ou les lieux de stockage des marchandises importées ou destinées à l\'export ;',
+    'Informer le domiciliataire de tout conflit potentiel ou de tout litige dont l\'entreprise domiciliée serait partie prenante à cause de son activité commerciale.'
+  ].forEach(function(t){ paras.push(xPara(xRun('•  ' + t), {indent:400, after:60})); });
+
+  paras.push(xPara(xRun('3- Dossier de domiciliation :', {underline:true}), {after:80}));
+  paras.push(xPara(xRun('La personne domiciliée doit déposer chez le domiciliataire un dossier constitué des documents suivants : '), {after:80}));
+  [
+    'Copie des documents d\'identité du représentant légal de la société domiciliée ;',
+    'Copie d\'une pièce prouvant l\'adresse du représentant légal de la société ;',
+    'Extrait du compte bancaire ou spécimen de chèque ;',
+    'Numéro de téléphone du représentant légal de la société domiciliée ;',
+    'Adresse de réexpédition du courrier ;',
+    'Copie des statuts de la société domiciliée.'
+  ].forEach(function(t){ paras.push(xPara(xRun('•  ' + t), {indent:400, after:60})); });
+  paras.push(xPara(xRun('Le domicilié s\'engage à informer l\'administration des impôts, la trésorerie générale du royaume et le cas échéant, l\'administration des douanes de toute modification intervenue sur l\'une des pièces constitutives du dossier dans un délai de 15 jours, à partir de sa prise de connaissance de cette modification ainsi que de toute modification des lieux de stockage des marchandises importées ou destinées à l\'export.'), {after:200}));
+
+  paras.push(xPara(
+    xRun('ARTICLE 4 : DUREE DU CONTRAT ', {bold:true, underline:true}) +
+    xRun('Le présent contrat de domiciliation est conclu pour une durée de ') + xRun((c.duree||'') + ' MOIS', {bold:true}) + xRun(', qui commencera le ') + xRun(fmtDate(c.dateDebut), {bold:true}) + xRun(' et se terminera le ') + xRun(fmtDate(c.dateFin), {bold:true}) + xRun(', renouvelable par tacite reconduction.') + xBreak() + xBreak() +
+    xRun('A l\'expiration de la durée du contrat de domiciliation ou en cas de sa rupture anticipée, le domicilié et le domiciliataire s\'engagent, conformément au paragraphe 1 et 2 de l\'article 3 du présent contrat à informer le secrétariat greffe du tribunal compétent du lieu d\'activité et l\'administration des impôts, la trésorerie générale des impôts et le cas échéant, l\'administration des douanes de l\'arrêt de la domiciliation, dans un délai d\'un mois à partir de la date de l\'arrêt du contrat.')
+  , {after:200}));
+
+  paras.push(xPara(xRun('ARTICLE 5 : LOYER ', {bold:true, underline:true}) + xRun('Le présent contrat de domiciliation est conclu moyennant un loyer mensuel fixé à ') + xRun((c.loyer||'') + ' DHS/MOIS', {bold:true}) + xRun(', payable par (' + (c.modePaiement || 'espèce/chèque') + ') le loyer fixé comprend tous les services de l\'article 2 du présent contrat.'), {after:200}));
+
+  paras.push(xPara(xRun('ARTICLE 6 : TRIBUNAUX COMPETENTS ', {bold:true, underline:true}) + xRun('Tout litige né entre les deux parties lors de l\'exécution du présent contrat sera soumis à la compétence du tribunal du lieu de domiciliation.'), {after:200}));
+
+  paras.push(xPara(
+    xRun('ARTICLE 7 : ELECTION DE DOMICILE ', {bold:true, underline:true}) +
+    xRun('Les parties élisent domicile à leur siège social : ') + xBreak() +
+    xRun('Le domiciliataire : LAMINE CONSEIL') + xBreak() +
+    xRun('Le domicilié : Société ' + (c.societe||''))
+  , {after:200}));
+
+  const procurationTexte = c.representant2
+    ? ('Messieurs ' + (c.representant||'') + (c.cin ? ', titulaire de la CIN N° ' + c.cin : '') + ', et ' + c.representant2 + (c.cin2 ? ', titulaire de la CIN N° ' + c.cin2 : '')
+        + ', agissant en leur qualité de cogérants donnent par la présente procuration à LAMINE CONSEIL, pour la réception de toutes sortes de notifications en notre nom pendant la durée du contrat.')
+    : ('Mr/Mme ' + (c.representant||'') + (c.cin ? ', titulaire de la CIN N° ' + c.cin : '') + ', agissant en sa qualité de ' + (c.qualite || 'gérant')
+        + ', donne par la présente procuration à LAMINE CONSEIL, pour la réception de toutes sortes de notifications en son nom pendant la durée du contrat.');
+  paras.push(xPara(xRun('ARTICLE 8 : PROCURATION SPECIALE ', {bold:true, underline:true}) + xRun(procurationTexte), {after:300}));
+
+  paras.push(xPara(xRun('A Casablanca le ' + fmtDate(c.dateDebut)), {after:400}));
+
+  paras.push(xPara(xRun('SIGNATURE DOMICILIATAIRE') + xBreak() + xRun('M. Omar LAMINE', {bold:true}) + xBreak() + xRun('Signature et cachet', {italic:true, size:18}), {after:200}));
+  let sigDomicilie = xRun('SIGNATURE DES DOMICILIES') + xBreak() + xRun(c.representant||'', {bold:true});
+  if(c.representant2) sigDomicilie += xBreak() + xRun(c.representant2, {bold:true});
+  sigDomicilie += xBreak() + xRun('Signature et cachet', {italic:true, size:18});
+  paras.push(xPara(sigDomicilie, {after:200}));
+
+  return paras.join('');
+}
+
+async function downloadDocx(c, filename){
+  if(!c){ alert('Impossible de trouver le contrat à exporter.'); return; }
+  if(!window.JSZip){ alert('Le générateur Word est en train de charger, réessaie dans quelques secondes.'); return; }
+  try{
+    const body = contractDocxBody(c);
+    const documentXml = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+      + '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">'
+      + '<w:body>' + body
+      + '<w:sectPr><w:pgSz w:w="11906" w:h="16838"/><w:pgMar w:top="1417" w:right="1417" w:bottom="1417" w:left="1417"/></w:sectPr>'
+      + '</w:body></w:document>';
+    const contentTypesXml = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+      + '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">'
+      + '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>'
+      + '<Default Extension="xml" ContentType="application/xml"/>'
+      + '<Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>'
+      + '</Types>';
+    const relsXml = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+      + '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
+      + '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/>'
+      + '</Relationships>';
+    const zip = new JSZip();
+    zip.file('[Content_Types].xml', contentTypesXml);
+    zip.folder('_rels').file('.rels', relsXml);
+    zip.folder('word').file('document.xml', documentXml);
+    const blob = await zip.generateAsync({type:'blob', mimeType:'application/vnd.openxmlformats-officedocument.wordprocessingml.document'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }catch(err){
+    console.error('Erreur Word', err);
+    alert('La génération du fichier Word a échoué sur cet appareil. Réessaie, ou utilise le bouton Télécharger en PDF.');
   }
-  const content = el.innerHTML;
-  const html = '<html xmlns:o="urn:schemas-microsoft-com:office:office" '
-    + 'xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">'
-    + '<head><meta charset="utf-8"><title>Contrat de domiciliation</title>'
-    + '<style>'
-    + 'body{font-family:"Times New Roman",serif;font-size:12pt;color:#1a1a1a;line-height:1.5;}'
-    + 'h3{text-align:center;font-size:15pt;margin:0 0 6px;}'
-    + '.legal-ref{text-align:center;font-style:italic;font-size:10pt;color:#444;margin:0 0 18px;}'
-    + '.party{margin:10px 0;}'
-    + '.art{margin:14px 0;}'
-    + '.art b.title{display:block;text-decoration:underline;margin-bottom:4px;}'
-    + 'ul{margin:6px 0;padding-left:20px;}'
-    + 'li{margin:3px 0;}'
-    + '.sign{margin-top:40px;width:100%;}'
-    + '.sign div{display:inline-block;width:46%;vertical-align:top;}'
-    + '.sign .line{border-top:1px solid #999;margin-top:44px;padding-top:4px;font-size:10pt;color:#555;}'
-    + '</style></head>'
-    + '<body>' + content + '</body></html>';
-  const blob = new Blob(['\ufeff', html], {type:'application/msword'});
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
 }
 
 function downloadJSON(){
@@ -1038,7 +1190,7 @@ function attachHandlers(){
 
   const wordBtn = document.getElementById('btn-word');
   if(wordBtn) wordBtn.onclick = function(){
-    downloadWord('print-area', 'contrat-' + (previewData.numero||'contrat') + '.doc');
+    downloadDocx(previewData, 'contrat-' + (previewData.numero||'contrat') + '.docx');
   };
 
   const printArchiveBtn = document.getElementById('btn-imprimer-archive');
@@ -1053,7 +1205,7 @@ function attachHandlers(){
   const wordArchiveBtn = document.getElementById('btn-word-archive');
   if(wordArchiveBtn) wordArchiveBtn.onclick = function(){
     const c = contracts.find(function(c){ return c.numero === viewingArchiveId; });
-    downloadWord('print-area', 'contrat-' + (c ? c.numero : 'contrat') + '.doc');
+    downloadDocx(c, 'contrat-' + (c ? c.numero : 'contrat') + '.docx');
   };
 
   const closeArchiveBtn = document.getElementById('btn-fermer-archive');
