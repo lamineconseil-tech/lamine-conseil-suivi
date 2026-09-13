@@ -100,7 +100,10 @@
   .paper .legal-ref{text-align:center;font-size:11.5px;font-style:italic;color:#444;margin:0 0 20px;}
   .paper .party{margin:10px 0;}
   .paper .party u{text-decoration:underline;}
-  .paper .art{margin:14px 0;}
+  .paper .art{margin:14px 0;page-break-inside:avoid;break-inside:avoid;}
+  .paper li{page-break-inside:avoid;break-inside:avoid;}
+  .paper .party{page-break-inside:avoid;break-inside:avoid;}
+  .paper .sign{page-break-inside:avoid;break-inside:avoid;}
   .paper .art b.title{display:block;margin-bottom:3px;text-decoration:underline;}
   .paper ul{margin:6px 0;padding-left:20px;}
   .paper li{margin:3px 0;}
@@ -308,24 +311,18 @@ async function downloadPDF(elementId, filename){
   const btns = document.querySelectorAll('.row-actions button');
   btns.forEach(function(b){ b.disabled = true; });
   try{
-    const canvas = await html2canvas(el, {scale:2, backgroundColor:'#fbf9f3', useCORS:true});
-    const imgData = canvas.toDataURL('image/png');
     const { jsPDF } = window.jspdf;
     const pdf = new jsPDF('p','mm','a4');
     const pageWidth = pdf.internal.pageSize.getWidth();
-    const pageHeight = pdf.internal.pageSize.getHeight();
-    const imgWidth = pageWidth;
-    const imgHeight = canvas.height * imgWidth / canvas.width;
-    let heightLeft = imgHeight;
-    let position = 0;
-    pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
-    heightLeft -= pageHeight;
-    while(heightLeft > 0){
-      position = heightLeft - imgHeight;
-      pdf.addPage();
-      pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
-      heightLeft -= pageHeight;
-    }
+    const margin = 12;
+    await pdf.html(el, {
+      x: margin,
+      y: margin,
+      width: pageWidth - margin * 2,
+      windowWidth: el.scrollWidth || 800,
+      autoPaging: 'text',
+      html2canvas: { scale: 2, backgroundColor: '#fbf9f3', useCORS: true }
+    });
     pdf.save(filename);
   }catch(err){
     console.error('Erreur PDF', err);
