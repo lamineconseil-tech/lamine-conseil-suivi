@@ -191,14 +191,14 @@
   .att-page{position:relative;width:794px;height:1123px;background:#fff;overflow:hidden;
     font-family:'Times New Roman',Times,Georgia,serif;color:#111;}
   .att-page .att-bg{position:absolute;left:0;top:0;width:794px;height:1123px;}
-  .att-page .att-body{position:absolute;left:88px;right:88px;top:200px;font-size:16px;line-height:1.7;font-style:italic;}
+  .att-page .att-body{position:absolute;left:88px;right:88px;top:205px;font-size:15.5px;line-height:1.55;font-style:italic;}
   .att-page .att-title{text-align:center;font-style:normal;font-weight:700;font-size:21px;
-    text-decoration:underline;letter-spacing:.5px;margin:0 0 38px;}
-  .att-page .att-body p{margin:0 0 16px;text-align:justify;text-indent:40px;}
-  .att-page .att-sign{position:relative;margin-left:50%;margin-top:34px;padding-bottom:4px;}
-  .att-page .att-sign p{text-indent:0;margin:0 0 8px;text-align:left;position:relative;z-index:1;}
-  .att-page .att-cachet{position:absolute;left:0;top:96px;max-width:190px;max-height:140px;z-index:2;}
-  .att-page .att-sign .att-cachet-space{height:120px;}
+    text-decoration:underline;letter-spacing:.5px;margin:0 0 34px;}
+  .att-page .att-body p{margin:0 0 11px;text-align:justify;text-indent:40px;}
+  .att-page .att-sign{position:relative;margin-top:30px;text-align:right;}
+  .att-page .att-sign p{text-indent:0;margin:0 0 6px;text-align:right;text-decoration:underline;position:relative;z-index:1;}
+  .att-page .att-body p.att-ice{text-indent:0;text-align:left;margin-top:40px;}
+  .att-page .att-cachet{position:absolute;right:30px;top:52px;max-width:190px;max-height:140px;z-index:2;}
 
   .cachet-box{display:flex;align-items:center;gap:14px;flex-wrap:wrap;}
   .cachet-box img{max-width:140px;max-height:100px;border:1px dashed var(--border);border-radius:4px;
@@ -1462,9 +1462,9 @@ function attestationPageHTML(a){
     + '<div class="att-sign">'
     + '<p><b>Fait à Casablanca Le ' + fmtDate(a.date) + '</b></p>'
     + '<p><b>OMAR LAMINE</b></p>'
-    + '<p>ICE : 002563684000023</p>'
-    + (withC ? '<img class="att-cachet" src="' + cachet.dataUrl + '" alt=""><div class="att-cachet-space"></div>' : '')
+    + (withC ? '<img class="att-cachet" src="' + cachet.dataUrl + '" alt="">' : '')
     + '</div>'
+    + '<p class="att-ice">ICE : 002563684000023</p>'
     + '</div></div>';
 }
 function attFrameHTML(a){
@@ -1516,6 +1516,14 @@ function wAnchorImg(rId, id, cx, cy){
     + '<wp:docPr id="' + id + '" name="Entete"/><wp:cNvGraphicFramePr/>'
     + wGraphic(rId, id, cx, cy) + '</wp:anchor></w:drawing></w:r>';
 }
+function wFloatImg(rId, id, cx, cy, offY){
+  return '<w:r><w:drawing><wp:anchor distT="0" distB="0" distL="0" distR="0" simplePos="0" relativeHeight="2" behindDoc="0" locked="0" layoutInCell="1" allowOverlap="1">'
+    + '<wp:simplePos x="0" y="0"/><wp:positionH relativeFrom="margin"><wp:align>right</wp:align></wp:positionH>'
+    + '<wp:positionV relativeFrom="paragraph"><wp:posOffset>' + offY + '</wp:posOffset></wp:positionV>'
+    + '<wp:extent cx="' + cx + '" cy="' + cy + '"/><wp:effectExtent l="0" t="0" r="0" b="0"/><wp:wrapNone/>'
+    + '<wp:docPr id="' + id + '" name="Cachet"/><wp:cNvGraphicFramePr/>'
+    + wGraphic(rId, id, cx, cy) + '</wp:anchor></w:drawing></w:r>';
+}
 function wInlineImg(rId, id, cx, cy){
   return '<w:r><w:drawing><wp:inline distT="0" distB="0" distL="0" distR="0">'
     + '<wp:extent cx="' + cx + '" cy="' + cy + '"/><wp:effectExtent l="0" t="0" r="0" b="0"/>'
@@ -1534,12 +1542,12 @@ function wP(runs, o){
   let ppr = '';
   if(o.jc) ppr += '<w:jc w:val="' + o.jc + '"/>';
   if(o.left || o.first) ppr += '<w:ind' + (o.left ? ' w:left="' + o.left + '"' : '') + (o.first ? ' w:firstLine="' + o.first + '"' : '') + '/>';
-  ppr += '<w:spacing w:after="' + (o.after !== undefined ? o.after : 240) + '" w:line="' + (o.line || 360) + '" w:lineRule="auto"/>';
+  ppr += '<w:spacing' + (o.before ? ' w:before="' + o.before + '"' : '') + ' w:after="' + (o.after !== undefined ? o.after : 160) + '" w:line="' + (o.line || 312) + '" w:lineRule="auto"/>';
   return '<w:p><w:pPr>' + ppr + '</w:pPr>' + runs + '</w:p>';
 }
 function wR(text, o){
   o = o || {};
-  return xRun(text, { bold:o.b, italic:o.i !== false, underline:o.u, size:o.size || 24 });
+  return xRun(text, { bold:o.b, italic:o.i !== false, underline:o.u, size:o.size || 23 });
 }
 
 async function downloadAttDocx(a){
@@ -1557,16 +1565,17 @@ async function downloadAttDocx(a){
     , {jc:'both', first:567});
     body += wP(wR('Nous ') + wR('déclarons', {b:true}) + wR(' en outre avoir pris connaissance qu’en application des dispositions de l’article 93 du CRCP, les rôles d’impôts, états de produits et autres titres de perception régulièrement émis sont exécutoires contre les redevables qui y sont inscrits, toutes personnes auprès desquelles les redevables ont élu domicile fiscal, avec leur accord.'), {jc:'both', first:567});
     body += wP(wR('Les personnes auprès desquelles les redevables ont élu domicile fiscal avec leur accord, peuvent, de ce fait, faire l’objet d’action en recouvrement au même titre que les redevables a raison des créances dues au titre de l’activité concernée par la domiciliation.'), {jc:'both', first:567});
-    body += wP(wR('En foi de quoi, la présente attestation est délivrée pour lui permettre de procéder aux formalités Administratives.'), {jc:'both', first:567, after:600});
-    body += wP(wR('Fait à Casablanca Le ' + fmtDate(a.date), {b:true}), {left:4700, after:160});
-    body += wP(wR('OMAR LAMINE', {b:true}), {left:4700, after:120});
-    body += wP(wR('ICE : 002563684000023'), {left:4700, after:60});
+    body += wP(wR('En foi de quoi, la présente attestation est délivrée pour lui permettre de procéder aux formalités Administratives.'), {jc:'both', first:567, after:400});
+    let stamp = '';
     if(withC){
-      let cx = 1900000; // ~5,3 cm
+      let cx = 1800000; // ~5 cm
       let cy = Math.round(cx * (cachet.h || 1) / (cachet.w || 1));
-      if(cy > 1400000){ cx = Math.round(cx * 1400000 / cy); cy = 1400000; }
-      body += wP(wInlineImg('rIdCachet', 2, cx, cy), {left:4700, after:0, line:240});
+      if(cy > 1330000){ cx = Math.round(cx * 1330000 / cy); cy = 1330000; }
+      stamp = wFloatImg('rIdCachet', 2, cx, cy, 230000);
     }
+    body += wP(wR('Fait à Casablanca Le ' + fmtDate(a.date), {b:true, u:true}), {jc:'right', after:100});
+    body += wP(stamp + wR('OMAR LAMINE', {b:true, u:true}), {jc:'right', after:0});
+    body += wP(wR('ICE : 002563684000023'), {after:0, before:1500});
 
     const documentXml = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
       + '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"'
