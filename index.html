@@ -516,11 +516,21 @@ function contractDocxBody(c){
 
   paras.push(xPara(xRun('A Casablanca le ' + fmtDate(c.dateDebut)), {after:400}));
 
-  paras.push(xPara(xRun('SIGNATURE DOMICILIATAIRE') + xBreak() + xRun('M. Omar LAMINE', {bold:true}) + xBreak() + xRun('Signature et cachet', {italic:true, size:18}), {after:200}));
-  let sigDomicilie = xRun('SIGNATURE DES DOMICILIES') + xBreak() + xRun(c.representant||'', {bold:true});
-  if(c.representant2) sigDomicilie += xBreak() + xRun(c.representant2, {bold:true});
-  sigDomicilie += xBreak() + xRun('Signature et cachet', {italic:true, size:18});
-  paras.push(xPara(sigDomicilie, {after:200}));
+  // Signatures côte à côte : domiciliataire à gauche, domicilié à droite (tableau sans bordures)
+  const sigCell = function(runs, jc){
+    return '<w:tc><w:tcPr><w:tcW w:w="4536" w:type="dxa"/></w:tcPr>'
+      + '<w:p><w:pPr><w:jc w:val="' + jc + '"/><w:spacing w:after="0"/></w:pPr>' + runs + '</w:p></w:tc>';
+  };
+  const sigGauche = xRun('SIGNATURE DOMICILIATAIRE') + xBreak() + xRun('M. Omar LAMINE', {bold:true}) + xBreak() + xRun('Signature et cachet', {italic:true, size:18});
+  let sigDroite = xRun('SIGNATURE DES DOMICILIES') + xBreak() + xRun(c.representant||'', {bold:true});
+  if(c.representant2) sigDroite += xBreak() + xRun(c.representant2, {bold:true});
+  sigDroite += xBreak() + xRun('Signature et cachet', {italic:true, size:18});
+  paras.push('<w:tbl><w:tblPr><w:tblW w:w="9072" w:type="dxa"/><w:tblLayout w:type="fixed"/>'
+    + '<w:tblBorders><w:top w:val="nil"/><w:left w:val="nil"/><w:bottom w:val="nil"/><w:right w:val="nil"/><w:insideH w:val="nil"/><w:insideV w:val="nil"/></w:tblBorders>'
+    + '<w:tblCellMar><w:left w:w="0" w:type="dxa"/><w:right w:w="0" w:type="dxa"/></w:tblCellMar></w:tblPr>'
+    + '<w:tblGrid><w:gridCol w:w="4536"/><w:gridCol w:w="4536"/></w:tblGrid>'
+    + '<w:tr><w:trPr><w:cantSplit/></w:trPr>' + sigCell(sigGauche, 'left') + sigCell(sigDroite, 'right') + '</w:tr></w:tbl>');
+  paras.push(xPara('', {after:0}));
 
   return paras.join('');
 }
